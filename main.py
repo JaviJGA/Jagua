@@ -33,6 +33,6 @@ class FakeJobsSpider(scrapy.Spider):
         with open('resultados.json', 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
-        # Sigue cada enlace encontrado
+        # Sigue cada enlace encontrados
         for url in urls:
             yield scrapy.Request(url, callback=self.parse)
