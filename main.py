@@ -429,14 +429,14 @@ class DynamicSearch:
         except:
             return ddg_url
     
-    def quick_index(self, url, task_id=None):
+    def quick_index(self, url, task_id=None, extract_links=True):
         """Indexa rápidamente una URL con seguimiento de progreso"""
         try:
             response = requests.get(url, headers=self.headers, timeout=10)
             domain = urlparse(url).netloc
             
             if not self.db.should_crawl_domain(domain):
-                return False
+                return []
                 
             # Procesamiento rápido de contenido
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -449,11 +449,11 @@ class DynamicSearch:
             content = re.sub(r'\s+', ' ', content).strip()[:10000]  # Limitar contenido
             
             if len(content) < 300:
-                return False
+                return []
                 
             page_id = self.db.insert_page(url, domain, title, content)
             if page_id is None:
-                return False
+                return []
                 
             words = re.findall(r'\w+', content.lower())
             word_freq = defaultdict(int)
@@ -469,11 +469,32 @@ class DynamicSearch:
             
             self.db.update_domain(domain)
             print(f"Quick indexed: {url}")
-            return True
+            
+            # Extraer enlaces relacionados si está habilitado
+            related_links = []
+            if extract_links:
+                # Encontrar todos los enlaces en la página
+                for link in soup.find_all('a', href=True):
+                    href = link.get('href')
+                    if href and href.startswith(('http://', 'https://')):
+                        parsed = urlparse(href)
+                        # Filtrar enlaces no deseados
+                        if (
+                            not parsed.fragment and
+                            not any(ext in parsed.path.lower() for ext in ['.pdf', '.jpg', '.png', '.gif', '.zip', '.exe', '.mp3', '.mp4']) and
+                            len(href) < 250
+                        ):
+                            related_links.append(href)
+                
+                # Limitar a 5 enlaces aleatorios
+                if len(related_links) > 5:
+                    related_links = random.sample(related_links, 5)
+            
+            return related_links
             
         except Exception as e:
             print(f"Error indexing {url}: {e}")
-            return False
+            return []
 
 # ========================================
 # Interfaz Web mejorada con búsqueda dinámica
@@ -530,6 +551,8 @@ def force_dynamic_search():
         'progress': 0,
         'urls_found': 0,
         'urls_indexed': 0,
+        'related_found': 0,
+        'related_indexed': 0,
         'start_time': time.time()
     }
     
@@ -556,7 +579,7 @@ def dynamic_search_task(query, task_id=None):
         task['progress'] = 5
     
     print(f"Iniciando búsqueda dinámica para: {query}")
-    urls = dynamic_searcher.duckduckgo_search(query)
+    urls = dynamic_searcher.duckduckgo_search(query, num_results=15)
     
     if task:
         task['urls_found'] = len(urls)
@@ -571,22 +594,58 @@ def dynamic_search_task(query, task_id=None):
         if task:
             task['total_urls'] = len(urls)
         
+        # Lista para almacenar enlaces relacionados encontrados
+        related_urls = []
+        
         # Indexar cada URL con seguimiento de progreso
         for i, url in enumerate(urls):
             if task:
                 # Actualizar progreso
-                progress = 10 + int((i / len(urls)) * 90)
+                progress = 10 + int((i / len(urls)) * 50)  # 50% para las URLs principales
                 task['progress'] = progress
                 task['current_url'] = url
                 task['urls_indexed'] = i
                 task['message'] = f'Indexando {i+1}/{len(urls)}: {url[:50]}...'
             
-            # Indexar la URL
-            success = dynamic_searcher.quick_index(url, task_id)
+            # Indexar la URL y obtener enlaces relacionados
+            found_related = dynamic_searcher.quick_index(url, task_id)
+            related_urls.extend(found_related)
             
-            if task and success:
+            if task and found_related:
+                task['related_found'] = len(related_urls)
+            
+            if task:
                 # Actualizar contador
                 task['urls_indexed'] = i + 1
+        
+        # Procesar enlaces relacionados
+        if related_urls:
+            if task:
+                task['status'] = 'indexing_related'
+                task['message'] = f'Indexando {len(related_urls)} enlaces relacionados...'
+                task['progress'] = 60
+            
+            # Filtrar URLs duplicadas
+            unique_related = list(set(related_urls))
+            
+            if task:
+                task['related_found'] = len(unique_related)
+            
+            # Indexar enlaces relacionados
+            for j, rel_url in enumerate(unique_related):
+                if task:
+                    # Actualizar progreso
+                    progress = 60 + int((j / len(unique_related)) * 40)
+                    task['progress'] = progress
+                    task['current_url'] = rel_url
+                    task['related_indexed'] = j
+                    task['message'] = f'Indexando relacionado {j+1}/{len(unique_related)}: {rel_url[:50]}...'
+                
+                # Indexar la URL relacionada (sin extraer más enlaces)
+                dynamic_searcher.quick_index(rel_url, task_id, extract_links=False)
+                
+                if task:
+                    task['related_indexed'] = j + 1
         
         if task:
             task['status'] = 'completed'
