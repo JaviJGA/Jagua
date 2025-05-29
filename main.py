@@ -89,6 +89,7 @@ class SearchEngineDB:
         ''', (domain,))
         self.conn.commit()
     
+
     def should_crawl_domain(self, domain):
         cursor = self.conn.cursor()
         cursor.execute('''
@@ -102,7 +103,24 @@ class SearchEngineDB:
             return True
         
         last_visited, delay = row
-        elapsed = time.time() - (last_visited if isinstance(last_visited, float) else time.mktime(last_visited.timetuple()))
+        
+        # Handle different types of last_visited
+        if last_visited is None:
+            return True
+        elif isinstance(last_visited, float):
+            elapsed = time.time() - last_visited
+        elif isinstance(last_visited, str):
+            # Parse the string to a datetime object first
+            try:
+                dt = datetime.strptime(last_visited, "%Y-%m-%d %H:%M:%S")  # Note: using datetime directly
+                elapsed = time.time() - time.mktime(dt.timetuple())
+            except ValueError:
+                # If parsing fails, assume we should crawl
+                return True
+        else:
+            # Assume it's a datetime object
+            elapsed = time.time() - time.mktime(last_visited.timetuple())
+        
         return elapsed > delay
     
     def search(self, query, limit=50):
