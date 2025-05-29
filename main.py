@@ -170,7 +170,7 @@ class SearchEngineDB:
 class AdvancedWebCrawler(scrapy.Spider):
     name = "advanced_search_crawler"
     custom_settings = {
-        'DEPTH_LIMIT': 3,
+        'DEPTH_LIMIT': 1,
         'CONCURRENT_REQUESTS': 100,
         'CONCURRENT_REQUESTS_PER_DOMAIN': 10,
         'REACTOR_THREADPOOL_MAXSIZE': 40,
