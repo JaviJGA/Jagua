@@ -1,12 +1,18 @@
 # Jagua 0.0.0.2
 Est-2025 
-Proyecto para el IES Aljada fiti maricon
+Proyecto para el IES Aljada
 Buscador web
 
+## Cosas pendientes
+
+- [ ] Refactoring para que todo esté mejor organizado
+- [ ] Terminar "tutorial" de uso
+- [ ] ???
+
+## Cómo usarlo
+
 ## Librerías
-requests
-BeautifulSoup
-Scrapy
+Ahora está en requirements.txt
 
 ### Objetivo
 Hacer de una forma u otra un buscador web capaz de dar resultados cercanos a la busqueda
