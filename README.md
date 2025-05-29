@@ -12,7 +12,7 @@ Buscador web
 ## Cómo usarlo
 
 ## Librerías
-Ahora está en requirements.txt
+Ahora está en requisitos.txt
 
 ### Objetivo
 Hacer de una forma u otra un buscador web capaz de dar resultados cercanos a la busqueda
