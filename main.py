@@ -686,7 +686,7 @@ def dynamic_search_task(query, task_id=None):
             for j, rel_url in enumerate(unique_related):
                 if task:
                     # Actualizar progreso
-                    progress = 60 + int((j / len(unique_related)) * 40
+                    progress = 60 + int((j / len(unique_related))) * 40
                     task['progress'] = progress
                     task['current_url'] = rel_url
                     task['related_indexed'] = j
