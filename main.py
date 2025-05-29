@@ -22,6 +22,7 @@ class SearchEngineDB:
     def __init__(self, db_name='search_engine.db'):
         self.db_name = db_name
         self._initialize_db()
+        self.lock = threading.Lock()  # Lock para operaciones críticas
         
     def _initialize_db(self):
         conn = self._get_connection()
@@ -34,7 +35,7 @@ class SearchEngineDB:
     def _get_connection(self):
         conn = sqlite3.connect(self.db_name, check_same_thread=False)
         conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout = 5000")
+        conn.execute("PRAGMA busy_timeout = 10000")  # Aumentar tiempo de espera
         return conn
     
     def _create_tables(self, conn):
@@ -80,48 +81,51 @@ class SearchEngineDB:
         conn.commit()
     
     def insert_page(self, url, domain, title, content):
-        conn = self._get_connection()
-        try:
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT OR REPLACE INTO pages (url, domain, title, content)
-                VALUES (?, ?, ?, ?)
-            ''', (url, domain, title, content))
-            conn.commit()
-            return cursor.lastrowid
-        except sqlite3.Error as e:
-            print(f"Error inserting page: {e}")
-            return None
-        finally:
-            conn.close()
+        with self.lock:  # Usar lock para operaciones críticas
+            conn = self._get_connection()
+            try:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT OR REPLACE INTO pages (url, domain, title, content)
+                    VALUES (?, ?, ?, ?)
+                ''', (url, domain, title, content))
+                conn.commit()
+                return cursor.lastrowid
+            except sqlite3.Error as e:
+                print(f"Error inserting page: {e}")
+                return None
+            finally:
+                conn.close()
     
     def insert_inverted_index(self, word, page_id, frequency):
-        conn = self._get_connection()
-        try:
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT OR REPLACE INTO inverted_index (word, page_id, frequency)
-                VALUES (?, ?, ?)
-            ''', (word, page_id, frequency))
-            conn.commit()
-        except sqlite3.Error as e:
-            print(f"Error inserting inverted index: {e}")
-        finally:
-            conn.close()
+        with self.lock:  # Usar lock para operaciones críticas
+            conn = self._get_connection()
+            try:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT OR REPLACE INTO inverted_index (word, page_id, frequency)
+                    VALUES (?, ?, ?)
+                ''', (word, page_id, frequency))
+                conn.commit()
+            except sqlite3.Error as e:
+                print(f"Error inserting inverted index: {e}")
+            finally:
+                conn.close()
     
     def update_domain(self, domain):
-        conn = self._get_connection()
-        try:
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT OR REPLACE INTO domains (domain, last_visited)
-                VALUES (?, CURRENT_TIMESTAMP)
-            ''', (domain,))
-            conn.commit()
-        except sqlite3.Error as e:
-            print(f"Error updating domain: {e}")
-        finally:
-            conn.close()
+        with self.lock:  # Usar lock para operaciones críticas
+            conn = self._get_connection()
+            try:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT OR REPLACE INTO domains (domain, last_visited)
+                    VALUES (?, CURRENT_TIMESTAMP)
+                ''', (domain,))
+                conn.commit()
+            except sqlite3.Error as e:
+                print(f"Error updating domain: {e}")
+            finally:
+                conn.close()
     
     def should_crawl_domain(self, domain):
         conn = self._get_connection()
@@ -394,7 +398,7 @@ class DynamicSearch:
             'Upgrade-Insecure-Requests': '1'
         }
     
-    def duckduckgo_search(self, query, num_results=10):
+    def duckduckgo_search(self, query, num_results=15):
         """Busca en DuckDuckGo y devuelve URLs de resultados"""
         try:
             search_url = f"https://html.duckduckgo.com/html/?q={quote(query)}"
@@ -430,9 +434,20 @@ class DynamicSearch:
             return ddg_url
     
     def quick_index(self, url, task_id=None, extract_links=True):
-        """Indexa rápidamente una URL con seguimiento de progreso"""
+        """Indexa rápidamente una URL con seguimiento de progreso y manejo de bloqueos"""
         try:
-            response = requests.get(url, headers=self.headers, timeout=10)
+            # Intentar obtener la página con reintentos
+            response = None
+            for attempt in range(3):
+                try:
+                    response = requests.get(url, headers=self.headers, timeout=10)
+                    break
+                except Exception as e:
+                    if attempt < 2:
+                        time.sleep(1)  # Esperar antes de reintentar
+                        continue
+                    raise e
+            
             domain = urlparse(url).netloc
             
             if not self.db.should_crawl_domain(domain):
@@ -451,7 +466,14 @@ class DynamicSearch:
             if len(content) < 300:
                 return []
                 
-            page_id = self.db.insert_page(url, domain, title, content)
+            # Insertar página con manejo de bloqueos
+            page_id = None
+            for attempt in range(3):
+                page_id = self.db.insert_page(url, domain, title, content)
+                if page_id is not None:
+                    break
+                time.sleep(0.5)  # Esperar antes de reintentar
+                
             if page_id is None:
                 return []
                 
@@ -464,11 +486,26 @@ class DynamicSearch:
                     if normalized:
                         word_freq[normalized] += 1
             
+            # Insertar índice invertido con manejo de bloqueos
             for word, freq in word_freq.items():
-                self.db.insert_inverted_index(word, page_id, freq)
+                inserted = False
+                for attempt in range(3):
+                    try:
+                        self.db.insert_inverted_index(word, page_id, freq)
+                        inserted = True
+                        break
+                    except:
+                        time.sleep(0.2 * (attempt + 1))  # Espera exponencial
+                if not inserted:
+                    print(f"Failed to insert word: {word} for page: {url}")
             
-            self.db.update_domain(domain)
-            print(f"Quick indexed: {url}")
+            # Actualizar dominio con manejo de bloqueos
+            for attempt in range(3):
+                try:
+                    self.db.update_domain(domain)
+                    break
+                except:
+                    time.sleep(0.3)
             
             # Extraer enlaces relacionados si está habilitado
             related_links = []
@@ -718,4 +755,4 @@ def run_crawler():
 if __name__ == '__main__':
     crawler_thread = threading.Thread(target=run_crawler, daemon=True)
     crawler_thread.start()
-    app.run(port=5000, debug=True, use_reloader=False)
+    app.run(port=5000, debug=True, use_reloader=False, threaded=True)
