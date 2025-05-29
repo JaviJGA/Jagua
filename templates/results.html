@@ -29,6 +29,7 @@
         .no-results { text-align: center; padding: 40px; }
         .back-btn { display: inline-block; padding: 8px 15px; background: var(--light); border: 1px solid var(--border); border-radius: 4px; color: var(--primary); text-decoration: none; margin-top: 20px; }
         .back-btn:hover { background: #f1f3f4; }
+        .action-buttons { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -45,4 +46,27 @@
             <div class="stat-item">Páginas indexadas: <span class="stat-value">{{ stats.pages }}</span></div>
             <div class="stat-item">Resultados: <span class="stat-value">{{ results|length }}</span></div>
         </div>
+
+        {% if results %}
+            {% for result in results %}
+                <div class="result">
+                    <a href="{{ result[0] }}" class="title" target="_blank">{{ result[1] }}</a>
+                    <div class="url">{{ result[0] }}</div>
+                    <div class="relevance">Relevancia: {{ result[2] }}</div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="no-results">
+                <h3>No se encontraron resultados para "{{ query }}"</h3>
+                <p>Intenta con términos más específicos o diferentes palabras clave.</p>
+            </div>
+        {% endif %}
         
+        <!-- Botón para forzar búsqueda dinámica -->
+        <div class="action-buttons">
+            <a href="/force_dynamic_search?q={{ query }}" class="back-btn">Buscar en la web</a>
+            <a href="/" class="back-btn">Nueva búsqueda</a>
+        </div>
+    </div>
+</body>
+</html>

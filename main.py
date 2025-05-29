@@ -4,6 +4,7 @@ from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 import sqlite3
 import re
+import unicodedata
 from flask import Flask, request, render_template, jsonify
 from collections import defaultdict
 import threading
@@ -15,16 +16,29 @@ import requests
 from datetime import datetime, timedelta
 
 # ========================================
-# Base de datos mejorada
+# Base de datos mejorada con manejo de concurrencia
 # ========================================
 class SearchEngineDB:
     def __init__(self, db_name='search_engine.db'):
-        self.conn = sqlite3.connect(db_name, check_same_thread=False)
-        self.create_tables()
-        self.create_indexes()
+        self.db_name = db_name
+        self._initialize_db()
         
-    def create_tables(self):
-        cursor = self.conn.cursor()
+    def _initialize_db(self):
+        conn = self._get_connection()
+        try:
+            self._create_tables(conn)
+            self._create_indexes(conn)
+        finally:
+            conn.close()
+    
+    def _get_connection(self):
+        conn = sqlite3.connect(self.db_name, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout = 5000")
+        return conn
+    
+    def _create_tables(self, conn):
+        cursor = conn.cursor()
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS pages (
                 id INTEGER PRIMARY KEY,
@@ -56,131 +70,201 @@ class SearchEngineDB:
                 last_searched TIMESTAMP
             )
         ''')
-        self.conn.commit()
+        conn.commit()
     
-    def create_indexes(self):
-        cursor = self.conn.cursor()
+    def _create_indexes(self, conn):
+        cursor = conn.cursor()
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_word ON inverted_index(word)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_domain ON pages(domain)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_query ON dynamic_searches(query)')
-        self.conn.commit()
+        conn.commit()
     
     def insert_page(self, url, domain, title, content):
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            INSERT OR REPLACE INTO pages (url, domain, title, content)
-            VALUES (?, ?, ?, ?)
-        ''', (url, domain, title, content))
-        self.conn.commit()
-        return cursor.lastrowid
+        conn = self._get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT OR REPLACE INTO pages (url, domain, title, content)
+                VALUES (?, ?, ?, ?)
+            ''', (url, domain, title, content))
+            conn.commit()
+            return cursor.lastrowid
+        except sqlite3.Error as e:
+            print(f"Error inserting page: {e}")
+            return None
+        finally:
+            conn.close()
     
     def insert_inverted_index(self, word, page_id, frequency):
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            INSERT OR REPLACE INTO inverted_index (word, page_id, frequency)
-            VALUES (?, ?, ?)
-        ''', (word, page_id, frequency))
+        conn = self._get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT OR REPLACE INTO inverted_index (word, page_id, frequency)
+                VALUES (?, ?, ?)
+            ''', (word, page_id, frequency))
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"Error inserting inverted index: {e}")
+        finally:
+            conn.close()
     
     def update_domain(self, domain):
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            INSERT OR REPLACE INTO domains (domain, last_visited)
-            VALUES (?, CURRENT_TIMESTAMP)
-        ''', (domain,))
-        self.conn.commit()
+        conn = self._get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT OR REPLACE INTO domains (domain, last_visited)
+                VALUES (?, CURRENT_TIMESTAMP)
+            ''', (domain,))
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"Error updating domain: {e}")
+        finally:
+            conn.close()
     
-
     def should_crawl_domain(self, domain):
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            SELECT last_visited, delay 
-            FROM domains 
-            WHERE domain = ?
-        ''', (domain,))
-        row = cursor.fetchone()
-        
-        if not row:
-            return True
-        
-        last_visited, delay = row
-        
-        # Handle different types of last_visited
-        if last_visited is None:
-            return True
-        elif isinstance(last_visited, float):
-            elapsed = time.time() - last_visited
-        elif isinstance(last_visited, str):
-            # Parse the string to a datetime object first
-            try:
-                dt = datetime.strptime(last_visited, "%Y-%m-%d %H:%M:%S")  # Note: using datetime directly
-                elapsed = time.time() - time.mktime(dt.timetuple())
-            except ValueError:
-                # If parsing fails, assume we should crawl
+        conn = self._get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT last_visited, delay 
+                FROM domains 
+                WHERE domain = ?
+            ''', (domain,))
+            row = cursor.fetchone()
+            
+            if not row:
                 return True
-        else:
-            # Assume it's a datetime object
-            elapsed = time.time() - time.mktime(last_visited.timetuple())
-        
-        return elapsed > delay
+            
+            last_visited, delay = row
+            
+            if last_visited is None:
+                return True
+            
+            try:
+                dt = datetime.strptime(last_visited, "%Y-%m-%d %H:%M:%S")
+                elapsed = time.time() - dt.timestamp()
+            except Exception:
+                return True
+            
+            return elapsed > delay
+        finally:
+            conn.close()
+    
+    def normalize_word(self, word):
+        """Normaliza palabras removiendo acentos y caracteres especiales"""
+        # Convertir a minúsculas y remover caracteres no alfabéticos
+        word = re.sub(r'[^a-záéíóúüñ]', '', word.lower())
+        # Remover acentos
+        word = ''.join(c for c in unicodedata.normalize('NFD', word)
+                     if unicodedata.category(c) != 'Mn')
+        return word
     
     def search(self, query, limit=50):
-        cursor = self.conn.cursor()
-        words = [word.lower() for word in re.findall(r'\w+', query) if len(word) > 2]
-        
-        if not words:
+        conn = self._get_connection()
+        try:
+            cursor = conn.cursor()
+            # Normalizar y filtrar palabras
+            words = [self.normalize_word(word) 
+                     for word in re.findall(r'\w+', query) 
+                     if len(word) > 2]
+            
+            if not words:
+                return []
+            
+            # MEJORA: Priorizar páginas con TODAS las palabras
+            placeholders = ', '.join(['?'] * len(words))
+            
+            # Consulta mejorada para priorizar relevancia
+            sql = f'''
+                SELECT 
+                    p.url, 
+                    p.title,
+                    SUM(ii.frequency) AS total_freq,
+                    COUNT(DISTINCT ii.word) AS words_found
+                FROM inverted_index ii
+                JOIN pages p ON ii.page_id = p.id
+                WHERE ii.word IN ({placeholders})
+                GROUP BY p.id
+                ORDER BY 
+                    words_found DESC,  -- Priorizar páginas con más palabras coincidentes
+                    total_freq DESC    -- Luego por frecuencia total
+                LIMIT ?
+            '''
+            
+            cursor.execute(sql, (*words, limit))
+            results = cursor.fetchall()
+            
+            # MEJORA: Filtrar resultados irrelevantes
+            min_words = max(1, len(words) // 2)  # Requerir al menos la mitad de las palabras
+            filtered_results = [res for res in results if res[3] >= min_words]
+            
+            return [(res[0], res[1], res[2]) for res in filtered_results]  # Excluir words_found
+        except sqlite3.Error as e:
+            print(f"Error en búsqueda: {e}")
             return []
-        
-        placeholders = ', '.join(['?'] * len(words))
-        sql = f'''
-            SELECT p.url, p.title, SUM(ii.frequency) AS total_freq
-            FROM inverted_index ii
-            JOIN pages p ON ii.page_id = p.id
-            WHERE ii.word IN ({placeholders})
-            GROUP BY p.id
-            ORDER BY total_freq DESC
-            LIMIT ?
-        '''
-        
-        cursor.execute(sql, (*words, limit))
-        return cursor.fetchall()
+        finally:
+            conn.close()
     
     def get_stats(self):
-        cursor = self.conn.cursor()
-        cursor.execute('SELECT COUNT(*) FROM pages')
-        page_count = cursor.fetchone()[0]
-        cursor.execute('SELECT COUNT(DISTINCT word) FROM inverted_index')
-        word_count = cursor.fetchone()[0]
-        cursor.execute('SELECT COUNT(DISTINCT domain) FROM pages')
-        domain_count = cursor.fetchone()[0]
-        return {
-            'pages': page_count,
-            'words': word_count,
-            'domains': domain_count
-        }
-    
+        conn = self._get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('SELECT COUNT(*) FROM pages')
+            page_count = cursor.fetchone()[0]
+            cursor.execute('SELECT COUNT(DISTINCT word) FROM inverted_index')
+            word_count = cursor.fetchone()[0]
+            cursor.execute('SELECT COUNT(DISTINCT domain) FROM pages')
+            domain_count = cursor.fetchone()[0]
+            return {
+                'pages': page_count,
+                'words': word_count,
+                'domains': domain_count
+            }
+        finally:
+            conn.close()
+
     def should_dynamic_search(self, query):
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            SELECT last_searched 
-            FROM dynamic_searches 
-            WHERE query = ?
-        ''', (query,))
-        row = cursor.fetchone()
-        
-        if not row:
-            return True
-        
-        last_searched = row[0]
-        elapsed = time.time() - (last_searched if isinstance(last_searched, float) else time.mktime(last_searched.timetuple()))
-        return elapsed > 86400  # 24 horas
-    
+        conn = self._get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT last_searched 
+                FROM dynamic_searches 
+                WHERE query = ?
+            ''', (query,))
+            row = cursor.fetchone()
+            
+            if not row:
+                return True
+
+            last_searched_str = row[0]
+
+            try:
+                dt = datetime.strptime(last_searched_str, '%Y-%m-%d %H:%M:%S')
+                timestamp = dt.timestamp()
+            except Exception:
+                return True
+
+            elapsed = time.time() - timestamp
+            return elapsed > 86400
+        finally:
+            conn.close()
+
     def record_dynamic_search(self, query):
-        cursor = self.conn.cursor()
-        cursor.execute('''
-            INSERT OR REPLACE INTO dynamic_searches (query, last_searched)
-            VALUES (?, CURRENT_TIMESTAMP)
-        ''', (query,))
-        self.conn.commit()
+        conn = self._get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT OR REPLACE INTO dynamic_searches (query, last_searched)
+                VALUES (?, CURRENT_TIMESTAMP)
+            ''', (query,))
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"Error recording dynamic search: {e}")
+        finally:
+            conn.close()
 
 # ========================================
 # Crawler mejorado para gran escala
@@ -252,12 +336,18 @@ class AdvancedWebCrawler(scrapy.Spider):
             return
         
         page_id = self.db.insert_page(url, domain, title, content[:50000])
+        if page_id is None:
+            self.logger.error(f"Failed to insert page: {url}")
+            return
         
         words = re.findall(r'\w+', content.lower())
         word_freq = defaultdict(int)
         for word in words:
             if 3 <= len(word) <= 50:
-                word_freq[word] += 1
+                # Normalizar palabra antes de indexar
+                normalized = self.db.normalize_word(word)
+                if normalized:
+                    word_freq[normalized] += 1
                 
         for word, freq in word_freq.items():
             self.db.insert_inverted_index(word, page_id, freq)
@@ -362,12 +452,17 @@ class DynamicSearch:
                     continue
                 
                 page_id = self.db.insert_page(url, domain, title, content)
+                if page_id is None:
+                    continue
                 
                 words = re.findall(r'\w+', content.lower())
                 word_freq = defaultdict(int)
                 for word in words:
                     if 3 <= len(word) <= 50:
-                        word_freq[word] += 1
+                        # Normalizar palabra antes de indexar
+                        normalized = self.db.normalize_word(word)
+                        if normalized:
+                            word_freq[normalized] += 1
                 
                 for word, freq in word_freq.items():
                     self.db.insert_inverted_index(word, page_id, freq)
@@ -413,6 +508,16 @@ def dynamic_search_status():
     query = request.args.get('q', '')
     return render_template('dynamic_search_progress.html', query=query)
 
+# Nueva ruta para forzar búsqueda dinámica
+@app.route('/force_dynamic_search')
+def force_dynamic_search():
+    query = request.args.get('q', '')
+    # Registrar la búsqueda dinámica sin importar el tiempo transcurrido
+    db.record_dynamic_search(query)
+    # Iniciar búsqueda dinámica en segundo plano
+    threading.Thread(target=dynamic_search_task, args=(query,)).start()
+    return render_template('dynamic_search.html', query=query)
+
 def dynamic_search_task(query):
     """Tarea en segundo plano para búsqueda dinámica"""
     print(f"Iniciando búsqueda dinámica para: {query}")
@@ -429,46 +534,20 @@ def run_crawler():
     time.sleep(2)
     print("\n🚀 Iniciando crawler avanzado...")
     
-    # Lista ampliada de URLs semilla
-    start_urls = [
-        "https://www.nytimes.com", "https://www.bbc.com", "https://www.theguardian.com",
-        "https://www.reuters.com", "https://apnews.com", "https://www.cnn.com",
-        "https://www.washingtonpost.com", "https://www.nbcnews.com", "https://www.aljazeera.com",
-        "https://techcrunch.com", "https://www.wired.com", "https://www.theverge.com",
-        "https://arstechnica.com", "https://www.cnet.com", "https://www.engadget.com",
-        "https://www.gsmarena.com", "https://www.tomsguide.com", "https://www.digitaltrends.com",
-        "https://www.wikipedia.org", "https://www.khanacademy.org", "https://www.coursera.org",
-        "https://www.edx.org", "https://www.ted.com", "https://www.udemy.com",
-        "https://www.nature.com", "https://www.sciencemag.org", "https://www.sciencedaily.com",
-        "https://www.space.com", "https://www.nationalgeographic.com", "https://www.livescience.com",
-        "https://stackoverflow.com", "https://github.com", "https://gitlab.com",
-        "https://developer.mozilla.org", "https://www.w3schools.com", "https://dev.to",
-        "https://css-tricks.com", "https://www.freecodecamp.org", "https://leetcode.com",
-        "https://www.reddit.com", "https://www.quora.com", "https://www.imdb.com",
-        "https://www.amazon.com", "https://www.ebay.com", "https://www.etsy.com",
-        "https://www.booking.com", "https://www.tripadvisor.com", "https://www.yelp.com",
-        "https://www.healthline.com", "https://www.webmd.com", "https://www.mayoclinic.org",
-        "https://www.elpais.com", "https://www.elmundo.es", "https://www.abc.es",
-        "https://www.lavanguardia.com", "https://www.elperiodico.com", "https://www.20minutos.es",
-        "https://www.marca.com", "https://www.as.com", "https://www.xataka.com",
-        "https://www.genbeta.com", "https://www.hipertextual.com"
-    ]
-    
+    # Lista de URLs semilla por categorías
     categories = {
-    'Science': 'Ciencia',
-    'Technology': 'Tecnología',
-    'History': 'Historia',
-    'Art': 'Arte',
-    'Mathematics': 'Matemáticas',
-    'Geography': 'Geografía'
+        'Science': 'Ciencia',
+        'Technology': 'Tecnología',
+        'History': 'Historia',
+        'Art': 'Arte',
+        'Mathematics': 'Matemáticas',
+        'Geography': 'Geografía'
     }
 
     start_urls = []
-
     for en_cat, es_cat in categories.items():
         start_urls.append(f"https://en.wikipedia.org/wiki/Category:{en_cat}")
         start_urls.append(f"https://es.wikipedia.org/wiki/Categoría:{es_cat}")
-
     
     print(f"🌐 Iniciando con {len(start_urls)} URLs semilla")
     print("⏳ Esto tomará tiempo... Puedes usar la interfaz web mientras se indexa")
