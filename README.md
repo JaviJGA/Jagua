@@ -11,7 +11,7 @@ Buscador web
 
 ## Cosas pendientes
 
-- [ ] Refactoring para que todo esté mejor organizado
+- [X] Refactoring para que todo esté mejor organizado
 - [ ] Terminar "tutorial" de uso
 - [X] Base de proyecto
 - [X] Hacer que los resultados salgan xd
