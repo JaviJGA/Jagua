@@ -188,7 +188,7 @@ class SearchEngineDB:
 class AdvancedWebCrawler(scrapy.Spider):
     name = "advanced_search_crawler"
     custom_settings = {
-        'DEPTH_LIMIT': 1,
+        'DEPTH_LIMIT': 3,
         'CONCURRENT_REQUESTS': 100,
         'CONCURRENT_REQUESTS_PER_DOMAIN': 10,
         'REACTOR_THREADPOOL_MAXSIZE': 40,
@@ -454,10 +454,21 @@ def run_crawler():
         "https://www.genbeta.com", "https://www.hipertextual.com"
     ]
     
-    # Añadir categorías de Wikipedia
-    for category in ['Science', 'Technology', 'History', 'Art', 'Mathematics', 'Geography']:
-        start_urls.append(f"https://en.wikipedia.org/wiki/Category:{category}")
-        start_urls.append(f"https://es.wikipedia.org/wiki/Categoría:{category}")
+    categories = {
+    'Science': 'Ciencia',
+    'Technology': 'Tecnología',
+    'History': 'Historia',
+    'Art': 'Arte',
+    'Mathematics': 'Matemáticas',
+    'Geography': 'Geografía'
+    }
+
+    start_urls = []
+
+    for en_cat, es_cat in categories.items():
+        start_urls.append(f"https://en.wikipedia.org/wiki/Category:{en_cat}")
+        start_urls.append(f"https://es.wikipedia.org/wiki/Categoría:{es_cat}")
+
     
     print(f"🌐 Iniciando con {len(start_urls)} URLs semilla")
     print("⏳ Esto tomará tiempo... Puedes usar la interfaz web mientras se indexa")
