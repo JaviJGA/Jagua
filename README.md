@@ -7,6 +7,7 @@ Buscador web
 
 - [ ] Refactoring para que todo esté mejor organizado
 - [ ] Terminar "tutorial" de uso
+- [X] Base de proyecto
 - [ ] ???
 
 ## Cómo usarlo
