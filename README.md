@@ -14,8 +14,8 @@ Buscador web
 - [ ] Refactoring para que todo esté mejor organizado
 - [ ] Terminar "tutorial" de uso
 - [X] Base de proyecto
-- [ ] Hacer que los resultados salgan xd
-- [ ] Mejorar un poco los templates
+- [X] Hacer que los resultados salgan xd
+- [X] Mejorar un poco los templates
 - [ ] ???
 
 ## Cómo usarlo

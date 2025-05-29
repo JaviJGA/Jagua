@@ -559,10 +559,24 @@ def search():
     if not results and db.should_dynamic_search(query):
         db.record_dynamic_search(query)
         
-        # Iniciar búsqueda dinámica en segundo plano
-        threading.Thread(target=dynamic_search_task, args=(query,)).start()
+        # Crear un ID único para esta tarea
+        task_id = str(time.time()) + "-" + query[:10]
+        dynamic_tasks[task_id] = {
+            'query': query,
+            'status': 'searching',
+            'progress': 0,
+            'urls_found': 0,
+            'urls_indexed': 0,
+            'related_found': 0,
+            'related_indexed': 0,
+            'start_time': time.time()
+        }
         
-        return render_template('dynamic_search.html', query=query)
+        # Iniciar búsqueda dinámica en segundo plano
+        threading.Thread(target=dynamic_search_task, args=(query, task_id)).start()
+        
+        # Redirigir a la página de progreso
+        return redirect(f'/dynamic_search_progress?task_id={task_id}')
     
     return render_template('results.html', query=query, results=results, stats=stats)
 
@@ -672,7 +686,7 @@ def dynamic_search_task(query, task_id=None):
             for j, rel_url in enumerate(unique_related):
                 if task:
                     # Actualizar progreso
-                    progress = 60 + int((j / len(unique_related)) * 40)
+                    progress = 60 + int((j / len(unique_related)) * 40
                     task['progress'] = progress
                     task['current_url'] = rel_url
                     task['related_indexed'] = j
