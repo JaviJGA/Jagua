@@ -5,7 +5,7 @@ from scrapy.utils.project import get_project_settings
 import sqlite3
 import re
 import unicodedata
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, render_template, jsonify, redirect
 from collections import defaultdict
 import threading
 import time
@@ -276,7 +276,7 @@ class AdvancedWebCrawler(scrapy.Spider):
         'CONCURRENT_REQUESTS': 100,
         'CONCURRENT_REQUESTS_PER_DOMAIN': 10,
         'REACTOR_THREADPOOL_MAXSIZE': 40,
-        'USER_AGENT': 'Mozilla/5.0 (compatible; TFG-SearchEngine/3.0; +http://tfg.example.com)',
+        'USER_AGENT': 'Mozilla/5.0 (compatible; Jaguar-SearchEngineTFG/3.0; +http://tfgjaguar.com)', #dominio inventado
         'ROBOTSTXT_OBEY': True,
         'AUTOTHROTTLE_ENABLED': True,
         'AUTOTHROTTLE_START_DELAY': 1,
@@ -299,7 +299,8 @@ class AdvancedWebCrawler(scrapy.Spider):
         self.user_agents = [
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15',
-            'Mozilla/5.0 (X11; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0'
+            'Mozilla/5.0 (X11; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0',
+            'EOS-SDK/1.17.22-40344262+Switch_13.3.0 (Switch/13.3.0.0) Rocket League/250411.64129.481382' #porque no?
         ]
     
     def start_requests(self):
@@ -428,50 +429,51 @@ class DynamicSearch:
         except:
             return ddg_url
     
-    def quick_index(self, urls):
-        """Indexa rápidamente las URLs encontradas"""
-        for url in urls:
-            try:
-                response = requests.get(url, headers=self.headers, timeout=10)
-                domain = urlparse(url).netloc
+    def quick_index(self, url, task_id=None):
+        """Indexa rápidamente una URL con seguimiento de progreso"""
+        try:
+            response = requests.get(url, headers=self.headers, timeout=10)
+            domain = urlparse(url).netloc
+            
+            if not self.db.should_crawl_domain(domain):
+                return False
                 
-                if not self.db.should_crawl_domain(domain):
-                    continue
+            # Procesamiento rápido de contenido
+            soup = BeautifulSoup(response.text, 'html.parser')
+            title = soup.title.string.strip() if soup.title else 'Sin título'
+            
+            for element in soup(['script', 'style', 'header', 'footer', 'nav', 'aside']):
+                element.decompose()
+            
+            content = soup.get_text()
+            content = re.sub(r'\s+', ' ', content).strip()[:10000]  # Limitar contenido
+            
+            if len(content) < 300:
+                return False
                 
-                # Procesamiento rápido de contenido
-                soup = BeautifulSoup(response.text, 'html.parser')
-                title = soup.title.string.strip() if soup.title else 'Sin título'
+            page_id = self.db.insert_page(url, domain, title, content)
+            if page_id is None:
+                return False
                 
-                for element in soup(['script', 'style', 'header', 'footer', 'nav', 'aside']):
-                    element.decompose()
-                
-                content = soup.get_text()
-                content = re.sub(r'\s+', ' ', content).strip()[:10000]  # Limitar contenido
-                
-                if len(content) < 300:
-                    continue
-                
-                page_id = self.db.insert_page(url, domain, title, content)
-                if page_id is None:
-                    continue
-                
-                words = re.findall(r'\w+', content.lower())
-                word_freq = defaultdict(int)
-                for word in words:
-                    if 3 <= len(word) <= 50:
-                        # Normalizar palabra antes de indexar
-                        normalized = self.db.normalize_word(word)
-                        if normalized:
-                            word_freq[normalized] += 1
-                
-                for word, freq in word_freq.items():
-                    self.db.insert_inverted_index(word, page_id, freq)
-                
-                self.db.update_domain(domain)
-                print(f"Quick indexed: {url}")
-                
-            except Exception as e:
-                print(f"Error indexing {url}: {e}")
+            words = re.findall(r'\w+', content.lower())
+            word_freq = defaultdict(int)
+            for word in words:
+                if 3 <= len(word) <= 50:
+                    # Normalizar palabra antes de indexar
+                    normalized = self.db.normalize_word(word)
+                    if normalized:
+                        word_freq[normalized] += 1
+            
+            for word, freq in word_freq.items():
+                self.db.insert_inverted_index(word, page_id, freq)
+            
+            self.db.update_domain(domain)
+            print(f"Quick indexed: {url}")
+            return True
+            
+        except Exception as e:
+            print(f"Error indexing {url}: {e}")
+            return False
 
 # ========================================
 # Interfaz Web mejorada con búsqueda dinámica
@@ -480,6 +482,9 @@ app = Flask(__name__)
 db = SearchEngineDB()
 dynamic_searcher = DynamicSearch(db)
 crawler_thread = None
+
+# Almacenamiento de estado de tareas dinámicas
+dynamic_tasks = {}
 
 @app.route('/')
 def index():
@@ -503,10 +508,12 @@ def search():
     
     return render_template('results.html', query=query, results=results, stats=stats)
 
-@app.route('/dynamic_search_status')
-def dynamic_search_status():
-    query = request.args.get('q', '')
-    return render_template('dynamic_search_progress.html', query=query)
+@app.route('/dynamic_search_progress')
+def dynamic_search_progress():
+    task_id = request.args.get('task_id', '')
+    task = dynamic_tasks.get(task_id, {})
+    query = task.get('query', 'Búsqueda')
+    return render_template('dynamic_search_progress.html', query=query, task_id=task_id)
 
 # Nueva ruta para forzar búsqueda dinámica
 @app.route('/force_dynamic_search')
@@ -514,20 +521,88 @@ def force_dynamic_search():
     query = request.args.get('q', '')
     # Registrar la búsqueda dinámica sin importar el tiempo transcurrido
     db.record_dynamic_search(query)
+    
+    # Crear un ID único para esta tarea
+    task_id = str(time.time()) + "-" + query[:10]
+    dynamic_tasks[task_id] = {
+        'query': query,
+        'status': 'searching',
+        'progress': 0,
+        'urls_found': 0,
+        'urls_indexed': 0,
+        'start_time': time.time()
+    }
+    
     # Iniciar búsqueda dinámica en segundo plano
-    threading.Thread(target=dynamic_search_task, args=(query,)).start()
-    return render_template('dynamic_search.html', query=query)
+    threading.Thread(target=dynamic_search_task, args=(query, task_id)).start()
+    
+    # Redirigir a la página de progreso
+    return redirect(f'/dynamic_search_progress?task_id={task_id}')
 
-def dynamic_search_task(query):
-    """Tarea en segundo plano para búsqueda dinámica"""
+# Ruta para obtener el estado de la tarea
+@app.route('/get_task_status')
+def get_task_status():
+    task_id = request.args.get('task_id')
+    task = dynamic_tasks.get(task_id, {})
+    return jsonify(task)
+
+def dynamic_search_task(query, task_id=None):
+    """Tarea en segundo plano para búsqueda dinámica con seguimiento de progreso"""
+    task = dynamic_tasks.get(task_id) if task_id else {}
+    
+    if task:
+        task['status'] = 'searching'
+        task['message'] = 'Buscando en DuckDuckGo...'
+        task['progress'] = 5
+    
     print(f"Iniciando búsqueda dinámica para: {query}")
     urls = dynamic_searcher.duckduckgo_search(query)
+    
+    if task:
+        task['urls_found'] = len(urls)
+        task['status'] = 'indexing'
+        task['message'] = f'Encontradas {len(urls)} URLs. Indexando...'
+        task['progress'] = 10
+    
     print(f"Encontradas {len(urls)} URLs para: {query}")
     
     if urls:
-        dynamic_searcher.quick_index(urls)
+        # Actualizar estado
+        if task:
+            task['total_urls'] = len(urls)
+        
+        # Indexar cada URL con seguimiento de progreso
+        for i, url in enumerate(urls):
+            if task:
+                # Actualizar progreso
+                progress = 10 + int((i / len(urls)) * 90)
+                task['progress'] = progress
+                task['current_url'] = url
+                task['urls_indexed'] = i
+                task['message'] = f'Indexando {i+1}/{len(urls)}: {url[:50]}...'
+            
+            # Indexar la URL
+            success = dynamic_searcher.quick_index(url, task_id)
+            
+            if task and success:
+                # Actualizar contador
+                task['urls_indexed'] = i + 1
+        
+        if task:
+            task['status'] = 'completed'
+            task['progress'] = 100
+            task['message'] = '¡Indexación completada!'
+            # Mantener el resultado por 5 minutos antes de limpiar
+            threading.Timer(300, lambda: dynamic_tasks.pop(task_id, None)).start()
+        
         print(f"Indexación rápida completada para: {query}")
     else:
+        if task:
+            task['status'] = 'completed'
+            task['progress'] = 100
+            task['message'] = 'No se encontraron resultados en DuckDuckGo.'
+            threading.Timer(300, lambda: dynamic_tasks.pop(task_id, None)).start()
+        
         print(f"No se encontraron resultados en DuckDuckGo para: {query}")
 
 def run_crawler():
@@ -544,7 +619,29 @@ def run_crawler():
         'Geography': 'Geografía'
     }
 
-    start_urls = []
+    start_urls = [
+        "https://www.nytimes.com", "https://www.bbc.com", "https://www.theguardian.com",
+        "https://www.reuters.com", "https://apnews.com", "https://www.cnn.com",
+        "https://www.washingtonpost.com", "https://www.nbcnews.com", "https://www.aljazeera.com",
+        "https://techcrunch.com", "https://www.wired.com", "https://www.theverge.com",
+        "https://arstechnica.com", "https://www.cnet.com", "https://www.engadget.com",
+        "https://www.gsmarena.com", "https://www.tomsguide.com", "https://www.digitaltrends.com",
+        "https://www.wikipedia.org", "https://www.khanacademy.org", "https://www.coursera.org",
+        "https://www.edx.org", "https://www.ted.com", "https://www.udemy.com",
+        "https://www.nature.com", "https://www.sciencemag.org", "https://www.sciencedaily.com",
+        "https://www.space.com", "https://www.nationalgeographic.com", "https://www.livescience.com",
+        "https://stackoverflow.com", "https://github.com", "https://gitlab.com",
+        "https://developer.mozilla.org", "https://www.w3schools.com", "https://dev.to",
+        "https://css-tricks.com", "https://www.freecodecamp.org", "https://leetcode.com",
+        "https://www.reddit.com", "https://www.quora.com", "https://www.imdb.com",
+        "https://www.amazon.com", "https://www.ebay.com", "https://www.etsy.com",
+        "https://www.booking.com", "https://www.tripadvisor.com", "https://www.yelp.com",
+        "https://www.healthline.com", "https://www.webmd.com", "https://www.mayoclinic.org",
+        "https://www.elpais.com", "https://www.elmundo.es", "https://www.abc.es",
+        "https://www.lavanguardia.com", "https://www.elperiodico.com", "https://www.20minutos.es",
+        "https://www.marca.com", "https://www.as.com", "https://www.xataka.com",
+        "https://www.genbeta.com", "https://www.hipertextual.com"
+    ]
     for en_cat, es_cat in categories.items():
         start_urls.append(f"https://en.wikipedia.org/wiki/Category:{en_cat}")
         start_urls.append(f"https://es.wikipedia.org/wiki/Categoría:{es_cat}")

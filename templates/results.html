@@ -48,7 +48,7 @@
         </div>
 
         {% if results %}
-            {% for result in results %}
+            {% for result in results[:10] %}
                 <div class="result">
                     <a href="{{ result[0] }}" class="title" target="_blank">{{ result[1] }}</a>
                     <div class="url">{{ result[0] }}</div>
