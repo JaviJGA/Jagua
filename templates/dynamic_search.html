@@ -1,0 +1,75 @@
+<!-- templates/dynamic_search.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Búsqueda dinámica - {{ query }}</title>
+    <style>
+        :root {
+            --primary: #4285f4;
+            --secondary: #34a853;
+            --dark: #202124;
+            --light: #f8f9fa;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--light); color: var(--dark); line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        header { display: flex; align-items: center; margin-bottom: 20px; }
+        .search-box { flex: 1; background: white; border-radius: 24px; padding: 5px; box-shadow: 0 1px 6px rgba(0,0,0,0.1); display: flex; margin-right: 15px; }
+        input[type="text"] { flex: 1; border: none; padding: 10px 15px; font-size: 1rem; border-radius: 24px; outline: none; }
+        .logo { font-size: 1.8rem; margin-right: 15px; }
+        .dynamic-search-container { text-align: center; padding: 50px 20px; background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin-top: 30px; }
+        .loader { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .progress-bar { height: 8px; background: #e0e0e0; border-radius: 4px; margin: 20px 0; overflow: hidden; }
+        .progress { height: 100%; background: var(--secondary); width: 0%; transition: width 0.5s ease; }
+        .btn { display: inline-block; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 24px; cursor: pointer; text-decoration: none; font-weight: 500; margin-top: 15px; }
+        .btn:hover { background: #3367d6; }
+    </style>
+    <script>
+        function checkProgress() {
+            setTimeout(() => {
+                document.querySelector('.progress').style.width = '40%';
+            }, 1000);
+            
+            setTimeout(() => {
+                document.querySelector('.progress').style.width = '70%';
+            }, 3000);
+            
+            setTimeout(() => {
+                document.querySelector('.progress').style.width = '90%';
+                document.querySelector('.message').textContent = '¡Indexación casi completada!';
+            }, 5000);
+            
+            setTimeout(() => {
+                window.location.href = `/search?q=${encodeURIComponent('{{ query }}')}`;
+            }, 7000);
+        }
+        
+        window.onload = checkProgress;
+    </script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🔍</div>
+            <form action="/search" method="get" class="search-box">
+                <input type="text" name="q" value="{{ query }}" required>
+            </form>
+            <a href="/" class="btn">Inicio</a>
+        </header>
+        
+        <div class="dynamic-search-container">
+            <div class="loader"></div>
+            <h2>Buscando contenido nuevo para: "{{ query }}"</h2>
+            <p class="message">Buscando en fuentes externas...</p>
+            
+            <div class="progress-bar">
+                <div class="progress"></div>
+            </div>
+            
+            <p>Estamos encontrando y indexando contenido específico para tu búsqueda.</p>
+            <p>Este proceso tomará unos segundos...</p>
+        </div>
+    </div>
+</body>
+</html>
