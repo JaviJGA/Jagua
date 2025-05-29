@@ -11,6 +11,7 @@ Buscador web
 
 ## Cosas pendientes
 
+- [ ] Meter que durante la carga dinamica se pueda cancelar
 - [X] Refactoring para que todo esté mejor organizado
 - [ ] Terminar "tutorial" de uso
 - [X] Base de proyecto
