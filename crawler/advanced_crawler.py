@@ -9,25 +9,38 @@ from bs4 import BeautifulSoup
 from collections import defaultdict
 from database.search_engine_db import SearchEngineDB
 
+# esto hace que el crawler sea más avanzado y eficiente, con un enfoque en la indexación de contenido relevante y la gestión de dominios.
+# Utiliza Scrapy para rastrear y extraer información de páginas web, optimizando el proceso de indexación y evitando contenido irrelevante.
+# Además, implementa un sistema de gestión de dominios para controlar la frecuencia de rastreo y evitar sobrecargas en los servidores.
+# No queremos que digitaldot se caiga un viernes por la tarde de nuevo jeje (perdón)
+
 class AdvancedWebCrawler(scrapy.Spider):
+    # nombre del crawler, debe ser único
     name = "advanced_search_crawler"
+    # es lo que dice el nombre, son las configuraciones del crawler
+    # se puede cambiar el depth limit, el número de peticiones concurrentes, el user agent, etc.
+    # también se puede cambiar el delay entre peticiones, el timeout, etc.
+    # cuantas veces voy a poner etc?
     custom_settings = {
-        'DEPTH_LIMIT': 3,
-        'CONCURRENT_REQUESTS': 100,
-        'CONCURRENT_REQUESTS_PER_DOMAIN': 10,
+        'DEPTH_LIMIT': 3, # limita la profundidad del rastreo a 3 niveles
+        'CONCURRENT_REQUESTS': 100, # número máximo de peticiones concurrentes
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 10, # número máximo de peticiones concurrentes por dominio
         'REACTOR_THREADPOOL_MAXSIZE': 40,
-        'USER_AGENT': 'Mozilla/5.0 (compatible; Jaguar-SearchEngineTFG/3.0; +http://tfgjaguar.com)',
-        'ROBOTSTXT_OBEY': True,
-        'AUTOTHROTTLE_ENABLED': True,
+        'USER_AGENT': 'Mozilla/5.0 (compatible; Jaguar-SearchEngineTFG/3.0; +http://tfgjaguar.com)', #dominio de ejemplo, no es real, no hay dinero xd
+        'ROBOTSTXT_OBEY': True, # importante para respetar las reglas de los robots.txt
+        'AUTOTHROTTLE_ENABLED': True, # habilita el autothrottle para ajustar la velocidad de rastreo
         'AUTOTHROTTLE_START_DELAY': 1,
         'AUTOTHROTTLE_MAX_DELAY': 5,
-        'HTTPCACHE_ENABLED': True,
-        'RETRY_ENABLED': True,
+        'HTTPCACHE_ENABLED': True, # habilita la caché HTTP para evitar peticiones repetidas
+        'RETRY_ENABLED': True, # habilita el reintento de peticiones fallidas
         'RETRY_TIMES': 2,
         'DOWNLOAD_TIMEOUT': 15,
         'LOG_LEVEL': 'INFO'
     }
     
+    # lo de abajo es el constructor de la clase, se ejecuta al iniciar el crawler
+    # aquí se inicializan las variables del crawler, como las URLs de inicio, la base de datos, etc.
+    # o si no como hacemos que se inicialicen las cosas lol
     def __init__(self, start_urls, db, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.start_urls = start_urls
@@ -36,17 +49,22 @@ class AdvancedWebCrawler(scrapy.Spider):
         self.indexed_pages = 0
         self.max_pages = 100000
         self.min_content_length = 500
+        # los user agents 🔥 importante poner varios para evitar bloqueos
         self.user_agents = [
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15',
             'Mozilla/5.0 (X11; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0',
-            'EOS-SDK/1.17.22-40344262+Switch_13.3.0 (Switch/13.3.0.0) Rocket League/250411.64129.481382'
+            'EOS-SDK/1.17.22-40344262+Switch_13.3.0 (Switch/13.3.0.0) Rocket League/250411.64129.481382' # por poner una mención a la switch
         ]
     
+    # este método se llama al iniciar el crawler, es donde se definen las URLs de inicio
+    # y se envían las primeras peticiones al servidor
     def start_requests(self):
         for url in self.start_urls:
             yield scrapy.Request(url, callback=self.parse, meta={'depth': 0})
     
+    # este método se llama para procesar la respuesta de cada petición
+    # aquí es donde se extrae el contenido de la página, se limpia, se normaliza y se indexa
     def parse(self, response):
         if self.indexed_pages >= self.max_pages:
             return
@@ -58,10 +76,12 @@ class AdvancedWebCrawler(scrapy.Spider):
         self.visited.add(url)
         domain = urlparse(url).netloc
         
+        # comprobamos si el dominio ya ha sido rastreado recientemente
         if not self.db.should_crawl_domain(domain):
             self.logger.info(f"Skipping {url} (domain delay active)")
             return
         
+        # extraemos el título de la página y limpiamos el contenido
         title = response.css('title::text').get(default='Sin título').strip()
         soup = BeautifulSoup(response.text, 'html.parser')
         
@@ -71,6 +91,7 @@ class AdvancedWebCrawler(scrapy.Spider):
         content = soup.get_text()
         content = re.sub(r'\s+', ' ', content).strip()
         
+        # normalizamos el contenido, eliminamos caracteres especiales y convertimos a minúsculas
         if len(content) < self.min_content_length:
             self.logger.info(f"Skipping {url} (content too short: {len(content)} chars)")
             return
@@ -119,8 +140,9 @@ class AdvancedWebCrawler(scrapy.Spider):
 
 def run_crawler(db):
     time.sleep(2)
-    print("\n🚀 Iniciando crawler avanzado...")
+    print("\n Crawler encendiendose... 🚀\n")
     
+    # esto es para wikipedia
     categories = {
         'Science': 'Ciencia',
         'Technology': 'Tecnología',
@@ -155,12 +177,14 @@ def run_crawler(db):
         "https://www.tutorialspoint.com", "https://www.geeksforgeeks.org", "https://www.javatpoint.com", "https://www.programiz.com",
         "https://www.freecodecamp.org", "https://www.codecademy.com", "https://www.udacity.com",
     ]
+    # lo que decía de antes, se usan las categorías y por cada categoría se añaden las URLs de Wikipedia en inglés y español
+    # esto es para que el crawler pueda indexar contenido relevante de Wikipedia en ambos idiomas (bilingüe)
     for en_cat, es_cat in categories.items():
         start_urls.append(f"https://en.wikipedia.org/wiki/Category:{en_cat}")
         start_urls.append(f"https://es.wikipedia.org/wiki/Categoría:{es_cat}")
     
-    print(f"🌐 Iniciando con {len(start_urls)} URLs semilla")
-    print("⏳ Esto tomará tiempo... Puedes usar la interfaz web mientras se indexa")
+    print(f"Iniciando con {len(start_urls)} URLs semilla")
+    print("Esto tomará tiempo... Puedes usar la interfaz web mientras se indexa")
     
     process = CrawlerProcess(get_project_settings())
     process.crawl(AdvancedWebCrawler, start_urls=start_urls, db=db)

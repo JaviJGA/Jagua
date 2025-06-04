@@ -5,16 +5,22 @@ from .task_manager import TaskManager
 import threading
 import time
 
+# aqui ya empezzam las cosas interesantes
+# usamos flask para crear una aplicación web sencilla
+# y manejar las búsquedas dinámicas con DuckDuckGo.
 app = Flask(__name__)
 db = SearchEngineDB()
 task_manager = TaskManager()
 dynamic_searcher = DynamicSearch(db)
 
+# la ruta / es la página principal que muestra las estadísticas del motor de búsqueda
+# y un formulario de búsqueda.
 @app.route('/')
 def index():
     stats = db.get_stats()
     return render_template('search.html', stats=stats)
 
+# la ruta /search maneja las búsquedas del usuario.	
 @app.route('/search')
 def search():
     query = request.args.get('q', '')
@@ -30,10 +36,14 @@ def search():
             args=(query, task_id)
         ).start()
         
+        # Redirigimos al usuario a una página de progreso en caso de búsqueda dinámica.
         return redirect(f'/dynamic_search_progress?task_id={task_id}')
     
+    # si no es necesario hacer una búsqueda dinámica, mostramos los resultados directamente.
     return render_template('results.html', query=query, results=results, stats=stats)
 
+# la ruta /dynamic_search_progress muestra el progreso de una búsqueda dinámica.
+# Si la tarea no existe o ha expirado, muestra un mensaje de error.
 @app.route('/dynamic_search_progress')
 def dynamic_search_progress():
     task_id = request.args.get('task_id', '')
@@ -43,6 +53,8 @@ def dynamic_search_progress():
     query = task.get('query', 'Búsqueda')
     return render_template('dynamic_search_progress.html', query=query, task_id=task_id)
 
+# la ruta /force_dynamic_search permite forzar una búsqueda dinámica
+# y crear una tarea para indexar los resultados.
 @app.route('/force_dynamic_search')
 def force_dynamic_search():
     query = request.args.get('q', '')
@@ -56,6 +68,9 @@ def force_dynamic_search():
     
     return redirect(f'/dynamic_search_progress?task_id={task_id}')
 
+# la ruta /get_task_status permite consultar el estado de una tarea dinámica.
+# Devuelve un JSON con el estado, progreso y mensajes de la tarea.
+# viva json muerte a xml (no me gusta xml)
 @app.route('/get_task_status')
 def get_task_status():
     task_id = request.args.get('task_id')
@@ -64,6 +79,14 @@ def get_task_status():
         return jsonify({'error': 'Tarea no encontrada'}), 404
     return jsonify(task)
 
+# dynamic_search_task es la función que se ejecuta en un hilo separado
+# para realizar la búsqueda dinámica y la indexación de resultados.
+# es bastanet larga, pero básicamente sigue estos pasos:
+# 1. Actualiza el estado de la tarea a "buscando" y realiza una búsqueda en DuckDuckGo.
+# 2. Si se encuentran URLs, actualiza el estado a "indexando" y comienza a indexar cada URL.
+# 3. Para cada URL, extrae enlaces relacionados y los indexa también.
+# 4. Actualiza el estado de la tarea a "completada" al finalizar.
+# Si no se encuentran resultados, actualiza el estado a "completada" con un mensaje adecuado.
 def dynamic_search_task(query, task_id):
     task = task_manager.get_task(task_id)
     

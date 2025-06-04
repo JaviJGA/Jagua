@@ -1,6 +1,8 @@
 import threading
 import time
 
+# esto maneja las tareas de búsqueda dinámica
+# y el progreso de las mismas. Permite crear, actualizar y limpiar tareas.
 class TaskManager:
     def __init__(self):
         self.tasks = {}
@@ -37,3 +39,5 @@ class TaskManager:
                 if task_id in self.tasks:
                     del self.tasks[task_id]
         threading.Thread(target=cleanup).start()
+
+# a donde vas

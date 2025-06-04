@@ -7,18 +7,26 @@ import re
 from collections import defaultdict
 from database.search_engine_db import SearchEngineDB
 
+# DynamicSearch: Clase para realizar búsquedas dinámicas en DuckDuckGo y extraer enlaces de páginas web.
+# no tenemos el dinero para hacer scraping de Google, así que usamos DuckDuckGo. (soy pobre)
 class DynamicSearch:
     def __init__(self, db):
         self.db = db
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Language': 'es-ES,en;q=0.5',
             'DNT': '1',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1'
         }
     
+    # duckduckgo_search: Realiza una búsqueda en DuckDuckGo y devuelve los enlaces de los resultados.
+    # Parámetros:
+    # - query: La consulta de búsqueda.
+    # - num_results: Número máximo de resultados a devolver (por defecto 15).
+    # Devuelve una lista de URLs encontradas o una lista vacía si ocurre un error.
+    # Si no se encuentran resultados, devuelve una lista vacía.
     def duckduckgo_search(self, query, num_results=15):
         try:
             search_url = f"https://html.duckduckgo.com/html/?q={quote(query)}"
@@ -39,6 +47,11 @@ class DynamicSearch:
             print(f"Error en DuckDuckGo: {e}")
             return []
     
+    # extract_real_url: Extrae la URL real de un enlace de DuckDuckGo.
+    # Parámetros:
+    # - ddg_url: La URL de DuckDuckGo que contiene el enlace real.
+    # Devuelve la URL real extraída o la URL original si no se puede extraer.
+    # Si ocurre un error, devuelve la URL original.
     def extract_real_url(self, ddg_url):
         try:
             parsed = urlparse(ddg_url)
@@ -49,6 +62,12 @@ class DynamicSearch:
         except:
             return ddg_url
     
+    # quick_index: Indexa una página web dada su URL y extrae enlaces relacionados.
+    # Parámetros:
+    # - url: La URL de la página a indexar.
+    # - extract_links: Si es True, extrae enlaces relacionados de la página (por defecto True).
+    # Devuelve una lista de enlaces relacionados o una lista vacía si ocurre un error.
+    # Si la página no tiene contenido suficiente, también devuelve una lista vacía.
     def quick_index(self, url, extract_links=True):
         try:
             response = None
@@ -97,6 +116,8 @@ class DynamicSearch:
                     if normalized:
                         word_freq[normalized] += 1
             
+            # esto no me acuerdo que era, pero lo dejé por si acaso
+            # ah ya me acuerdo, era para evitar que se indexen palabras muy comunes
             for word, freq in word_freq.items():
                 inserted = False
                 for attempt in range(3):
@@ -116,6 +137,7 @@ class DynamicSearch:
                 except:
                     time.sleep(0.3)
             
+            # esto era para evitar pdf, imágenes y otros archivos pesados
             related_links = []
             if extract_links:
                 for link in soup.find_all('a', href=True):
@@ -133,7 +155,8 @@ class DynamicSearch:
                     related_links = random.sample(related_links, 5)
             
             return related_links
-            
+        
+        # Si ocurre un error al indexar la página, se captura la excepción y se imprime un mensaje.
         except Exception as e:
-            print(f"Error indexing {url}: {e}")
+            print(f"Error indexando {url}: {e}")
             return []
