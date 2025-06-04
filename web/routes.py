@@ -1,9 +1,12 @@
 from flask import Flask, request, render_template, jsonify, redirect
 from database.search_engine_db import SearchEngineDB
 from search.dynamic_search import DynamicSearch
+from security.safe_search import SafeSearch
 from .task_manager import TaskManager
 import threading
 import time
+
+safe_search = SafeSearch("https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts")
 
 # aqui ya empezzam las cosas interesantes
 # usamos flask para crear una aplicación web sencilla
