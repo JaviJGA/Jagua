@@ -54,7 +54,8 @@ class AdvancedWebCrawler(scrapy.Spider):
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15',
             'Mozilla/5.0 (X11; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0',
-            'EOS-SDK/1.17.22-40344262+Switch_13.3.0 (Switch/13.3.0.0) Rocket League/250411.64129.481382' # por poner una mención a la switch
+            'EOS-SDK/1.17.22-40344262+Switch_13.3.0 (Switch/13.3.0.0) Rocket League/250411.64129.481382', # por poner una mención a la switch
+            'EOS-SDK/1.16.2710-29084362+Switch_16.2.0 (Switch/16.2.0.0) Fortnite/++Fortnite+Release-27.10-CL-29552510'
         ]
     
     # este método se llama al iniciar el crawler, es donde se definen las URLs de inicio
