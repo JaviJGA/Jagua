@@ -35,7 +35,7 @@ Buscador web con capacidad de indexar y hacer crawling de páginas. Si no encuen
 
 ## 🛠️ Cómo usarlo
 
-1. Instalar dependencias con `pip install -r requirements.txt`
+1. Instalar dependencias con `pip install -r requisitos.txt`
 2. Ejecutar el proyecto con `python main.py`
 
 ---
