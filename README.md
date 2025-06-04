@@ -3,7 +3,7 @@
 ![Versión](https://img.shields.io/badge/versión-0.0.2.3-blue?style=flat-square)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-yellow?style=flat-square)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square)
-![Licencia](https://img.shields.io/badge/licencia-MIT-green?style=flat-square)
+![Licencia](https://img.shields.io/badge/licencia-WTFPL-green?style=flat-square)
 
 **Est. 2025 — Proyecto TFG para IES Aljada**
 
