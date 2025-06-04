@@ -30,6 +30,7 @@
             {% endfor %}
         {% else %}
             <div class="no-results">
+                <img src="{{ url_for('static', filename='styles/jesus.jpg') }}" />
                 <h3>No se encontraron resultados para "{{ query }}"</h3>
                 <p>Intenta con términos más específicos o diferentes palabras clave.</p>
             </div>
