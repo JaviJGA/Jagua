@@ -23,6 +23,26 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .btn { display: inline-block; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; margin-top: 20px; }
         .btn:hover { background: #3367d6; }
+        /* Nuevos estilos para botones */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #202124;
+            border: 1px solid #ccc;
+        }
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        .btn-success {
+            background: var(--secondary);
+        }
+        .btn-success:hover {
+            background: #2c8e47;
+        }
     </style>
     <script>
         let taskId = new URLSearchParams(window.location.search).get('task_id');
@@ -61,11 +81,6 @@
             if (data.status === 'completed') {
                 clearInterval(checkInterval);
                 document.getElementById('results-btn').style.display = 'block';
-                
-                // Redirigir automáticamente después de 3 segundos
-                setTimeout(() => {
-                    window.location.href = `/search?q=${encodeURIComponent(data.query)}`;
-                }, 3000);
             }
         }
         
@@ -133,9 +148,13 @@
                 </div>
             </div>
             
-            <a id="results-btn" href="/search?q={{ query }}" class="btn" style="display: none;">
-                Ver resultados
-            </a>
+            <!-- Botones de acción -->
+            <div class="action-buttons">
+                <a href="/" class="btn btn-secondary">Seguir buscando</a>
+                <a id="results-btn" href="/search?q={{ query }}" class="btn btn-success" style="display: none;">
+                    Ver resultados
+                </a>
+            </div>
         </div>
     </div>
 </body>

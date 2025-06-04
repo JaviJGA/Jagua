@@ -24,6 +24,20 @@
         button:hover { background: #3367d6; transform: translateY(-2px); }
         footer { text-align: center; margin-top: 50px; color: #5f6368; }
         .logo { font-size: 3rem; margin-bottom: 20px; }
+        /* Nuevo estilo para notificación de tareas */
+        .background-notice {
+            background: #fff8e1;
+            border-left: 4px solid #ffc107;
+            padding: 10px 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+        }
+        .background-notice .icon {
+            margin-right: 10px;
+            font-size: 1.5rem;
+        }
     </style>
 </head>
 <body>
@@ -38,6 +52,17 @@
                 <div class="stat-item">Palabras: <span class="stat-value">{{ stats.words }}</span></div>
                 <div class="stat-item">Dominios: <span class="stat-value">{{ stats.domains }}</span></div>
             </div>
+            
+            <!-- Mostrar notificación si hay tareas en segundo plano -->
+            {% if background_tasks > 0 %}
+            <div class="background-notice">
+                <div class="icon">⏳</div>
+                <div>
+                    <p>Hay {{ background_tasks }} tarea(s) de indexación en segundo plano</p>
+                    <p><small>Los resultados pueden mejorar a medida que se completan</small></p>
+                </div>
+            </div>
+            {% endif %}
         </header>
         
         <form action="/search" method="get">

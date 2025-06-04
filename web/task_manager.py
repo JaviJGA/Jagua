@@ -7,6 +7,9 @@ class TaskManager:
     def __init__(self):
         self.tasks = {}
         self.lock = threading.Lock()
+        # Hilo para limpieza automática
+        self.cleanup_thread = threading.Thread(target=self.auto_cleanup, daemon=True)
+        self.cleanup_thread.start()
     
     def create_task(self, query):
         task_id = f"{time.time()}-{query[:10]}"
@@ -19,7 +22,8 @@ class TaskManager:
                 'urls_indexed': 0,
                 'related_found': 0,
                 'related_indexed': 0,
-                'start_time': time.time()
+                'start_time': time.time(),
+                'completed': False  # Nuevo campo para identificar tareas completadas
             }
         return task_id
     
@@ -32,12 +36,19 @@ class TaskManager:
         with self.lock:
             return self.tasks.get(task_id, {}).copy()
     
-    def cleanup_task(self, task_id, delay=300):
-        def cleanup():
-            time.sleep(delay)
+    def auto_cleanup(self):
+        """Limpia automáticamente tareas completadas después de 5 minutos"""
+        while True:
+            time.sleep(60)  # Verificar cada minuto
+            current_time = time.time()
             with self.lock:
-                if task_id in self.tasks:
+                # Identificar tareas completadas hace más de 5 minutos
+                to_remove = [
+                    task_id for task_id, task in self.tasks.items()
+                    if task.get('completed') and (current_time - task.get('start_time', 0)) > 300
+                ]
+                # Eliminar tareas antiguas
+                for task_id in to_remove:
                     del self.tasks[task_id]
-        threading.Thread(target=cleanup).start()
 
 # a donde vas

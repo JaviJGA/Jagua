@@ -18,7 +18,11 @@ dynamic_searcher = DynamicSearch(db)
 @app.route('/')
 def index():
     stats = db.get_stats()
-    return render_template('search.html', stats=stats)
+    # Contar tareas activas en segundo plano
+    active_tasks = [task for task in task_manager.tasks.values() 
+                   if task['status'] != 'completed']
+    background_tasks = len(active_tasks)
+    return render_template('search.html', stats=stats, background_tasks=background_tasks)
 
 # la ruta /search maneja las búsquedas del usuario.	
 @app.route('/search')
@@ -27,20 +31,25 @@ def search():
     results = db.search(query)
     stats = db.get_stats()
     
-    if not results and db.should_dynamic_search(query):
-        db.record_dynamic_search(query)
-        task_id = task_manager.create_task(query)
-        
-        threading.Thread(
-            target=dynamic_search_task, 
-            args=(query, task_id)
-        ).start()
-        
-        # Redirigimos al usuario a una página de progreso en caso de búsqueda dinámica.
-        return redirect(f'/dynamic_search_progress?task_id={task_id}')
+    # Contar tareas activas en segundo plano
+    active_tasks = [task for task in task_manager.tasks.values() 
+                   if task['status'] != 'completed']
+    background_tasks = len(active_tasks)
     
-    # si no es necesario hacer una búsqueda dinámica, mostramos los resultados directamente.
-    return render_template('results.html', query=query, results=results, stats=stats)
+    # Si hay resultados o no se requiere búsqueda dinámica, mostrar resultados
+    if results or not db.should_dynamic_search(query):
+        return render_template('results.html', query=query, results=results, stats=stats, background_tasks=background_tasks)
+    
+    # Registrar búsqueda dinámica e iniciar tarea
+    db.record_dynamic_search(query)
+    task_id = task_manager.create_task(query)
+    
+    threading.Thread(
+        target=dynamic_search_task, 
+        args=(query, task_id)
+    ).start()
+    
+    return redirect(f'/dynamic_search_progress?task_id={task_id}')
 
 # la ruta /dynamic_search_progress muestra el progreso de una búsqueda dinámica.
 # Si la tarea no existe o ha expirado, muestra un mensaje de error.
@@ -166,7 +175,8 @@ def dynamic_search_task(query, task_id):
                 'progress': 100,
                 'message': '¡Indexación completada!'
             })
-            task_manager.cleanup_task(task_id, delay=300)
+            # No eliminar la tarea inmediatamente, solo marcarla como completada
+            # La limpieza se hará más tarde automáticamente
     else:
         if task:
             task_manager.update_task(task_id, {
@@ -174,4 +184,3 @@ def dynamic_search_task(query, task_id):
                 'progress': 100,
                 'message': 'No se encontraron resultados en DuckDuckGo.'
             })
-            task_manager.cleanup_task(task_id, delay=300)

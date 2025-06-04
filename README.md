@@ -1,6 +1,6 @@
-# 🐾 Jagua 0.0.2.3
+# 🐾 Jagua 0.0.6.0
 
-![Versión](https://img.shields.io/badge/versión-0.0.2.3-blue?style=flat-square)
+![Versión](https://img.shields.io/badge/versión-0.0.6.0-blue?style=flat-square)
 ![Estado](https://img.shields.io/badge/estado-en%20desarrollo-yellow?style=flat-square)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square)
 ![Licencia](https://img.shields.io/badge/licencia-WTFPL-green?style=flat-square)
@@ -22,8 +22,7 @@ Buscador web con capacidad de indexar y hacer crawling de páginas. Si no encuen
 
 ## 🚧 Cosas pendientes
 
-- [ ] Permitir cancelar la carga dinámica
-- [ ] Poder usar el navegador mientras trabaja la carga dinámica
+- [X] Poder usar el navegador mientras trabaja la carga dinámica
 - [X] Refactorización general del código
 - [X] Terminar el "tutorial" de uso
 - [X] Crear la base funcional del proyecto
