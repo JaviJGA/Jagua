@@ -175,8 +175,7 @@ def dynamic_search_task(query, task_id):
                 'progress': 100,
                 'message': '¡Indexación completada!'
             })
-            # No eliminar la tarea inmediatamente, solo marcarla como completada
-            # La limpieza se hará más tarde automáticamente
+            # No eliminar la tarea inmediatamente, solo marcarla como completada pues luego se limpiará automáticamente
     else:
         if task:
             task_manager.update_task(task_id, {

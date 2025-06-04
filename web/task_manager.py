@@ -36,18 +36,17 @@ class TaskManager:
         with self.lock:
             return self.tasks.get(task_id, {}).copy()
     
+    # esto limpia las tareas completadas que han expirado
+    # y las elimina después de 5 minutos.
     def auto_cleanup(self):
-        """Limpia automáticamente tareas completadas después de 5 minutos"""
         while True:
-            time.sleep(60)  # Verificar cada minuto
+            time.sleep(60)
             current_time = time.time()
             with self.lock:
-                # Identificar tareas completadas hace más de 5 minutos
                 to_remove = [
                     task_id for task_id, task in self.tasks.items()
                     if task.get('completed') and (current_time - task.get('start_time', 0)) > 300
                 ]
-                # Eliminar tareas antiguas
                 for task_id in to_remove:
                     del self.tasks[task_id]
 
