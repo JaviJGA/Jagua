@@ -3,8 +3,8 @@
 <html>
 <head>
     <title>Indexando: {{ query }}</title>
-    <link rel="stylesheet" href="./dsp/dsp.css">
-    <script src="./dsp/dsp.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static',filename='styles/dsp.css') }}">
+    <script src="{{url_for('static', filename='dsp.js')}}"></script>
 </head>
 <body>
     <div class="container">
