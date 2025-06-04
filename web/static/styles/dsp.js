@@ -1,7 +1,7 @@
 let taskId = new URLSearchParams(window.location.search).get('task_id');
 let checkInterval;
 
-//deberiamos de haber dado más javascript en el grado, al menos no es php eh...
+//deberiamos de haber dado más javascript en el grado, al menos no es php eh... / Joder no lo sabes bien hermano
 function updateProgressBar(progress) {
     const fill = document.getElementById('progress-fill');
     const text = document.getElementById('progress-text');
@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('status-message').textContent = 'Error: ID de tarea no especificado';
         return;
     }
+
 
     checkStatus();
 });

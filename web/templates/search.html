@@ -2,11 +2,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Motor de Búsqueda Avanzado - Jagua</title>
+    <title>JAGUA</title>
 
     <link rel="stylesheet" href="{{ url_for('static',filename='styles/search.css') }}" />
 </head>
 <body>
+    <div class="theme-switcher">
+            <button id="theme-light" class="theme-btn" title="Tema claro" onclick="setTheme('light')"></button>
+            <button id="theme-dark" class="theme-btn" title="Tema oscuro" onclick="setTheme('dark')"></button>
+            <button id="theme-blue" class="theme-btn" title="Tema azul" onclick="setTheme('blue')"></button>
+        </div>
     <div class="container">
         <header>
             <div class="logo">🔍</div>
@@ -30,7 +35,7 @@
             </div>
             {% endif %}
         </header>
-        
+    
         <form action="/search" method="get">
             <div class="search-box">
                 <input type="text" name="q" placeholder="Buscar en miles de páginas..." required autofocus>
@@ -39,7 +44,7 @@
         </form>
         
         <footer>
-            <p>Sistema de búsqueda - Proyecto Jagua | Indexación en tiempo real</p>
+            <p>JAGUA powered by DuckDuckGo</p>
         </footer>
     </div>
 </body>
