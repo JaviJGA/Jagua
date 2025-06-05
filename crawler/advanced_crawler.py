@@ -22,7 +22,7 @@ class AdvancedWebCrawler(scrapy.Spider):
     # también se puede cambiar el delay entre peticiones, el timeout, etc.
     # cuantas veces voy a poner etc?
     custom_settings = {
-        'DEPTH_LIMIT': 3, # limita la profundidad del rastreo a 3 niveles
+        'DEPTH_LIMIT': 20, # limita la profundidad del rastreo a 3 niveles
         'CONCURRENT_REQUESTS': 100, # número máximo de peticiones concurrentes
         'CONCURRENT_REQUESTS_PER_DOMAIN': 10, # número máximo de peticiones concurrentes por dominio
         'REACTOR_THREADPOOL_MAXSIZE': 40,
@@ -176,7 +176,7 @@ def run_crawler(db):
         "https://www.marca.com", "https://www.as.com", "https://www.xataka.com",
         "https://www.genbeta.com", "https://www.hipertextual.com", "https://www.w3schools.com",
         "https://www.tutorialspoint.com", "https://www.geeksforgeeks.org", "https://www.javatpoint.com", "https://www.programiz.com",
-        "https://www.freecodecamp.org", "https://www.codecademy.com", "https://www.udacity.com",
+        "https://www.freecodecamp.org", "https://www.codecademy.com", "https://www.udacity.com", "https://www.digitaldot.es/"
     ]
     # lo que decía de antes, se usan las categorías y por cada categoría se añaden las URLs de Wikipedia en inglés y español
     # esto es para que el crawler pueda indexar contenido relevante de Wikipedia en ambos idiomas (bilingüe)
