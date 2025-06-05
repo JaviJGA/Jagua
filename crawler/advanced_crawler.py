@@ -12,7 +12,8 @@ from database.search_engine_db import SearchEngineDB
 # esto hace que el crawler sea más avanzado y eficiente, con un enfoque en la indexación de contenido relevante y la gestión de dominios.
 # Utiliza Scrapy para rastrear y extraer información de páginas web, optimizando el proceso de indexación y evitando contenido irrelevante.
 # Además, implementa un sistema de gestión de dominios para controlar la frecuencia de rastreo y evitar sobrecargas en los servidores.
-# No queremos que digitaldot se caiga un viernes por la tarde de nuevo jeje (perdón)
+# No queremos que digitaldot se caiga un viernes por la tarde de nuevo jeje (perdón) 
+# jeje pues se cayó un jueves por la mañana y por una ip de metaenlace (nomearrepientodenada)
 
 class AdvancedWebCrawler(scrapy.Spider):
     # nombre del crawler, debe ser único
@@ -146,7 +147,7 @@ class AdvancedWebCrawler(scrapy.Spider):
                     )
 
 def run_crawler(db):
-    time.sleep(2)
+    time.sleep(2) #muy pro esto, nivel belda
     print("\n Crawler encendiendose... 🚀\n")
     
     # esto es para wikipedia
