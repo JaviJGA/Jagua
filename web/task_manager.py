@@ -15,6 +15,7 @@ class TaskManager:
         task_id = f"{time.time()}-{query[:10]}"
         with self.lock:
             self.tasks[task_id] = {
+                'id': task_id,
                 'query': query,
                 'status': 'searching',
                 'progress': 0,
@@ -28,9 +29,8 @@ class TaskManager:
         return task_id
     
     def update_task(self, task_id, updates):
-        with self.lock:
-            if task_id in self.tasks:
-                self.tasks[task_id].update(updates)
+       if task_id in self.tasks:
+           self.tasks[task_id].update(updates)
     
     def get_task(self, task_id):
         with self.lock:

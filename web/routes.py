@@ -31,8 +31,15 @@ def index():
 @app.route('/search')
 def search():
     query = request.args.get('q', '')
+    safe_mode = request.args.get('safe', 'off') == 'on'
     results = db.search(query)
     stats = db.get_stats()
+
+    if safe_mode:
+        original_count = len(results)
+        results = safe_search.filter_results(results)
+        safe_count = len(results)
+        print(f"Modo seguro activado. Filtrados {original_count - safe_count} resultados")
     
     # Contar tareas activas en segundo plano
     active_tasks = [task for task in task_manager.tasks.values() 
@@ -41,7 +48,7 @@ def search():
     
     # Si hay resultados o no se requiere búsqueda dinámica, mostrar resultados
     if results or not db.should_dynamic_search(query):
-        return render_template('results.html', query=query, results=results, stats=stats, background_tasks=background_tasks)
+        return render_template('results.html', query=query, results=results, stats=stats, background_tasks=background_tasks, safe_mode=safe_mode)
     
     # Registrar búsqueda dinámica e iniciar tarea
     db.record_dynamic_search(query)
@@ -91,6 +98,18 @@ def get_task_status():
         return jsonify({'error': 'Tarea no encontrada'}), 404
     return jsonify(task)
 
+@app.route('/check_domain')
+def check_domain():
+    domain = request.args.get('d', '')
+    is_blocked = safe_search.is_domain_blocked(domain)
+    #print_blocked_domains(safe_search)
+    return jsonify({
+        'domain': domain,
+        'blocked': is_blocked,
+        'blocked_domains_count': len(safe_search.blocked_domains),
+        'last_update': safe_search.last_update
+    })
+
 # dynamic_search_task es la función que se ejecuta en un hilo separado
 # para realizar la búsqueda dinámica y la indexación de resultados.
 # es bastanet larga, pero básicamente sigue estos pasos:
@@ -101,88 +120,80 @@ def get_task_status():
 # Si no se encuentran resultados, actualiza el estado a "completada" con un mensaje adecuado.
 def dynamic_search_task(query, task_id):
     task = task_manager.get_task(task_id)
+    total_steps = 100  # Progreso total
     
-    if task:
-        task_manager.update_task(task_id, {
-            'status': 'searching',
-            'message': 'Buscando en DuckDuckGo...',
-            'progress': 5
-        })
+    # Paso 1: Búsqueda inicial (10%)
+    task_manager.update_task(task_id, {
+        'status': 'searching',
+        'progress': 10,
+        'message': 'Buscando en DuckDuckGo...'
+    })
     
     urls = dynamic_searcher.duckduckgo_search(query, num_results=15)
     
-    if task:
+    if not urls:
         task_manager.update_task(task_id, {
-            'urls_found': len(urls),
-            'status': 'indexing',
-            'message': f'Encontradas {len(urls)} URLs. Indexando...',
-            'progress': 10
+            'status': 'completed',
+            'progress': 100,
+            'message': 'No se encontraron resultados'
         })
+        return
+
+    # Paso 2: Indexación principal (40%)
+    task_manager.update_task(task_id, {
+        'status': 'indexing',
+        'progress': 20,
+        'total_urls': len(urls),
+        'message': f'Indexando {len(urls)} URLs principales...'
+    })
     
-    if urls:
-        if task:
-            task_manager.update_task(task_id, {'total_urls': len(urls)})
+    related_urls = []
+    for i, url in enumerate(urls):
+        # Calcular progreso (20-60%)
+        progress = 20 + int((i / len(urls)) * 40)
         
-        related_urls = []
+        task_manager.update_task(task_id, {
+            'progress': progress,
+            'current_url': url,
+            'urls_indexed': i + 1,
+            'message': f'Indexando URL {i+1}/{len(urls)}'
+        })
         
-        for i, url in enumerate(urls):
-            if task:
-                progress = 10 + int((i / len(urls)) * 50)
-                task_manager.update_task(task_id, {
-                    'progress': progress,
-                    'current_url': url,
-                    'urls_indexed': i,
-                    'message': f'Indexando {i+1}/{len(urls)}: {url[:50]}...'
-                })
-            
-            found_related = dynamic_searcher.quick_index(url)
-            related_urls.extend(found_related)
-            
-            if task and found_related:
-                task_manager.update_task(task_id, {'related_found': len(related_urls)})
-            
-            if task:
-                task_manager.update_task(task_id, {'urls_indexed': i + 1})
+        found_related = dynamic_searcher.quick_index(url)
+        related_urls.extend(found_related)
+
+    # Paso 3: Indexación de relacionados (30%)
+    unique_related = list(set(related_urls))
+    if unique_related:
+        task_manager.update_task(task_id, {
+            'status': 'indexing_related',
+            'progress': 60,
+            'total_related': len(unique_related),
+            'message': f'Indexando {len(unique_related)} enlaces relacionados...'
+        })
         
-        if related_urls:
-            if task:
-                task_manager.update_task(task_id, {
-                    'status': 'indexing_related',
-                    'message': f'Indexando {len(related_urls)} enlaces relacionados...',
-                    'progress': 60
-                })
+        for j, rel_url in enumerate(unique_related):
+            # Calcular progreso (60-90%)
+            progress = 60 + int((j / len(unique_related)) * 30)
             
-            unique_related = list(set(related_urls))
-            
-            if task:
-                task_manager.update_task(task_id, {'related_found': len(unique_related)})
-            
-            for j, rel_url in enumerate(unique_related):
-                if task:
-                    progress = 60 + int((j / len(unique_related))) * 40
-                    task_manager.update_task(task_id, {
-                        'progress': progress,
-                        'current_url': rel_url,
-                        'related_indexed': j,
-                        'message': f'Indexando relacionado {j+1}/{len(unique_related)}: {rel_url[:50]}...'
-                    })
-                
-                dynamic_searcher.quick_index(rel_url, extract_links=False)
-                
-                if task:
-                    task_manager.update_task(task_id, {'related_indexed': j + 1})
-        
-        if task:
             task_manager.update_task(task_id, {
-                'status': 'completed',
-                'progress': 100,
-                'message': '¡Indexación completada!'
+                'progress': progress,
+                'current_url': rel_url,
+                'related_indexed': j + 1,
+                'message': f'Indexando relacionado {j+1}/{len(unique_related)}'
             })
-            # No eliminar la tarea inmediatamente, solo marcarla como completada pues luego se limpiará automáticamente
-    else:
-        if task:
-            task_manager.update_task(task_id, {
-                'status': 'completed',
-                'progress': 100,
-                'message': 'No se encontraron resultados en DuckDuckGo.'
-            })
+            
+            dynamic_searcher.quick_index(rel_url, extract_links=False)
+
+    # Paso 4: Finalización (100%), le meti que redirija a los resultados antes no iba creo lol
+    task_manager.update_task(task_id, {
+        'status': 'completed',
+        'progress': 100,
+        'message': '¡Indexación completada!',
+        'redirect_url': f'/search?q={query}'
+    })
+
+def print_blocked_domains(self):
+    print("Dominios bloqueados actualmente:")
+    for d in self.blocked_domains:
+        print(d)

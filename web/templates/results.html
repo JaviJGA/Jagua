@@ -20,6 +20,12 @@
             <div class="stat-item">Resultados: <span class="stat-value">{{ results|length }}</span></div>
         </div>
 
+        {% if safe_mode %}
+            <div class="safe-mode-indicator">
+                🔒 Modo seguro activado - Contenido inapropiado bloqueado
+            </div>
+        {% endif %}
+
         {% if results %}
             {% for result in results[:10] %}
                 <div class="result">

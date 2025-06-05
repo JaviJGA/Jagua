@@ -53,34 +53,38 @@ class SafeSearch:
         if re.match(r'^[a-z0-9.-]+\.[a-z]{2,}$', domain, re.IGNORECASE):
             return domain.lower()
         return None
-    
+
     def periodic_update(self):
         while True:
             time.sleep(self.update_interval)
             self.load_blocked_domains()
-    
-    def is_domain_blocked(self, url):
+
+    def is_domain_blocked(self, url_or_domain):
         try:
-            domain = urlparse(url).netloc
+            # Si es una URL, extrae el dominio
+            if '://' in url_or_domain:
+                domain = urlparse(url_or_domain).netloc
+            else:
+                domain = url_or_domain
+            # Elimina posibles credenciales en la URL
+            if '@' in domain:
+                domain = domain.split('@')[-1]
             clean_domain = self.normalize_domain(domain)
-            
             if not clean_domain:
                 return False
-            
             with self.lock:
-                # Verificar el dominio completo y el TLD
-                parts = clean_domain.split('.')
-                # Verificar dominio completo (ej: example.com)
+                # Verifica el dominio completo
                 if clean_domain in self.blocked_domains:
                     return True
-                # Verificar dominio de segundo nivel (ej: .com si el dominio es sub.example.com)
+                # Verifica el dominio base (por ejemplo, example.com de sub.example.com)
+                parts = clean_domain.split('.')
                 if len(parts) > 2:
                     base_domain = '.'.join(parts[-2:])
                     if base_domain in self.blocked_domains:
                         return True
-            
             return False
-        except:
+        except Exception as e:
+            print(f"Error en is_domain_blocked: {e}")
             return False
     
     def filter_results(self, results):

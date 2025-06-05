@@ -131,3 +131,15 @@
             gap: 10px;
             margin-top: 20px;
         }
+
+        .safe-mode-indicator {
+            background-color: #e8f0fe;
+            color: #1a73e8;
+            padding: 8px 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            display: inline-flex;
+            align-items: center;
+            font-size: 14px;
+            gap: 8px;
+        }

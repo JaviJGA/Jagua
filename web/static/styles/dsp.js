@@ -1,4 +1,7 @@
 let taskId = new URLSearchParams(window.location.search).get('task_id');
+const progressBar = document.getElementById('progressBar');
+const statusMessage = document.getElementById('statusMessage');
+const details = document.getElementById('details');
 let checkInterval;
 
 //deberiamos de haber dado más javascript en el grado, al menos no es php eh... / Joder no lo sabes bien hermano
@@ -59,4 +62,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     checkStatus();
-});
+});        
+
+//nos e formatear 
+function checkProgress() {
+    fetch(`/get_task_status?task_id=${taskId}`)
+    .then(response => response.json())
+    .then(data => {
+    progressBar.style.width = data.progress + '%';
+    statusMessage.textContent = data.message;
+    let detailText = `Progreso: ${data.progress}%`;
+    if(data.related_indexed) {
+        detailText += ` | Relacionados: ${data.related_indexed}/${data.total_related}`;
+    }
+    details.textContent = detailText;
+    if(data.status !== 'completed') {
+        setTimeout(checkProgress, 2000);
+    } 
+    else {
+        setTimeout(() => {
+            window.location.href = `/search?q={{ query }}`;
+        }, 3000);
+    }});
+    }
+    checkProgress();

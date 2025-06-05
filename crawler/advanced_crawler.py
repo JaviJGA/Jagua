@@ -17,6 +17,7 @@ from database.search_engine_db import SearchEngineDB
 class AdvancedWebCrawler(scrapy.Spider):
     # nombre del crawler, debe ser único
     name = "advanced_search_crawler"
+
     # es lo que dice el nombre, son las configuraciones del crawler
     # se puede cambiar el depth limit, el número de peticiones concurrentes, el user agent, etc.
     # también se puede cambiar el delay entre peticiones, el timeout, etc.
@@ -26,16 +27,17 @@ class AdvancedWebCrawler(scrapy.Spider):
         'CONCURRENT_REQUESTS': 100, # número máximo de peticiones concurrentes
         'CONCURRENT_REQUESTS_PER_DOMAIN': 10, # número máximo de peticiones concurrentes por dominio
         'REACTOR_THREADPOOL_MAXSIZE': 40,
-        'USER_AGENT': 'Mozilla/5.0 (compatible; Jaguar-SearchEngineTFG/3.0; +http://tfgjaguar.com)', #dominio de ejemplo, no es real, no hay dinero xd
+        'USER_AGENT': 'Mozilla/5.0 (compatible; JAGUARCRAWLERDONTBLOCKPLEASE/3.0; +http://tfgjaguar.com)', #dominio de ejemplo, no es real, no hay dinero xd
         'ROBOTSTXT_OBEY': True, # importante para respetar las reglas de los robots.txt
         'AUTOTHROTTLE_ENABLED': True, # habilita el autothrottle para ajustar la velocidad de rastreo
-        'AUTOTHROTTLE_START_DELAY': 1,
-        'AUTOTHROTTLE_MAX_DELAY': 5,
+        'AUTOTHROTTLE_START_DELAY': 2, # tiempo de espera inicial entre peticiones
+        'AUTOTHROTTLE_MAX_DELAY': 8, # máximo retraso entre peticiones
+        'AUTOTHROTTLE_TARGET_CONCURRENCY': 1.5, # ajusta la concurrencia objetivo
         'HTTPCACHE_ENABLED': True, # habilita la caché HTTP para evitar peticiones repetidas
         'RETRY_ENABLED': True, # habilita el reintento de peticiones fallidas
-        'RETRY_TIMES': 2,
-        'DOWNLOAD_TIMEOUT': 15,
-        'LOG_LEVEL': 'INFO'
+        'RETRY_TIMES': 3, # número de reintentos en caso de fallo
+        'DOWNLOAD_TIMEOUT': 15, # tiempo máximo de espera para descargar una página
+        'LOG_LEVEL': 'INFO' # nivel de registro, puede ser DEBUG, INFO, WARNING, ERROR o CRITICAL
     }
     
     # lo de abajo es el constructor de la clase, se ejecuta al iniciar el crawler
@@ -55,7 +57,11 @@ class AdvancedWebCrawler(scrapy.Spider):
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15',
             'Mozilla/5.0 (X11; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0',
             'EOS-SDK/1.17.22-40344262+Switch_13.3.0 (Switch/13.3.0.0) Rocket League/250411.64129.481382', # por poner una mención a la switch
-            'EOS-SDK/1.16.2710-29084362+Switch_16.2.0 (Switch/16.2.0.0) Fortnite/++Fortnite+Release-27.10-CL-29552510'
+            'EOS-SDK/1.16.2710-29084362+Switch_16.2.0 (Switch/16.2.0.0) Fortnite/++Fortnite+Release-27.10-CL-29552510',
+            'Mozilla/5.0 (Nintendo Switch; WifiWebAuthApplet) AppleWebKit/601.6 (KHTML, like Gecko) NF/4.0.0.8.9 NintendoBrowser/5.1.0.16739',
+            'Mozilla/5.0 (Nintendo 3DS; U; Factory Media Production; en) Version/1.7498.US',
+            'Mozilla/4.0 (PSP (PlayStation Portable); 2.00)',
+            'Mozilla/5.0 (PlayStation Vita 3.75) AppleWebKit/537.73 (KHTML, like Gecko) Silk/3.2 WebOne/0.11.2.0',
         ]
     
     # este método se llama al iniciar el crawler, es donde se definen las URLs de inicio
