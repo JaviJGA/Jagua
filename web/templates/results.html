@@ -9,11 +9,26 @@
     <div class="container">
         <header>
             <div class="logo">🔍</div>
+
             <form action="/search" method="get" class="search-box">
                 <input type="text" name="q" value="{{ query }}" required>
+                
+                <!-- Safe search justo debajo del buscador -->
+                <div class="safe-search">
+                    <label for="safe-mode">Modo seguro:</label>
+                    <label class="switch">
+                        <input type="checkbox" id="safe-mode" name="safe" value="on" {% if safe_mode %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                    <span class="safe-info" title="Bloquea contenido inapropiado">ⓘ</span>
+                </div>
             </form>
+
             <a href="/" class="back-btn">Inicio</a>
         </header>
+
+
+
         
         <div class="stats">
             <div class="stat-item">Páginas indexadas: <span class="stat-value">{{ stats.pages }}</span></div>
