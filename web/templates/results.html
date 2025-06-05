@@ -21,10 +21,11 @@
         </div>
 
         {% if safe_mode %}
-            <div class="safe-mode-indicator">
-                🔒 Modo seguro activado - Contenido inapropiado bloqueado
-            </div>
+            <p style="color: green;"><strong>Modo seguro activado</strong></p>
+        {% else %}
+            <p style="color: red;"><strong>Modo seguro desactivado</strong></p>
         {% endif %}
+
 
         {% if results %}
             {% for result in results[:10] %}

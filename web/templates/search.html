@@ -46,12 +46,11 @@
         <div class="safe-search">
             <label for="safe-mode">Modo seguro:</label>
             <label class="switch">
-                <input type="checkbox" id="safe-mode" name="safe" value="on" checked>
+                <input type="checkbox" id="safe-mode" name="safe" value="on" {% if safe_mode %}checked{% endif %}>
                 <span class="slider"></span>
             </label>
             <span class="safe-info" title="Bloquea contenido inapropiado">ⓘ</span>
         </div>
-
         
         <footer>
             <p>JAGUA powered by DuckDuckGo</p>

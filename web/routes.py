@@ -35,31 +35,36 @@ def search():
     results = db.search(query)
     stats = db.get_stats()
 
+    # Mostrar información de depuración
+    print(f"Modo seguro: {'ACTIVADO' if safe_mode else 'DESACTIVADO'}")
+    print(f"Resultados antes de filtrar: {len(results)}")
+    
     if safe_mode:
         original_count = len(results)
         results = safe_search.filter_results(results)
         safe_count = len(results)
-        print(f"Modo seguro activado. Filtrados {original_count - safe_count} resultados")
+        print(f"Resultados después de filtrar: {safe_count}")
+        print(f"Se filtraron {original_count - safe_count} resultados")
+        
+        # Depuración adicional: mostrar algunos dominios bloqueados
+        if results:
+            sample_urls = [result[0] for result in results[:3]]
+            print(f"Ejemplo de URLs permitidas: {sample_urls}")
     
     # Contar tareas activas en segundo plano
     active_tasks = [task for task in task_manager.tasks.values() 
                    if task['status'] != 'completed']
     background_tasks = len(active_tasks)
     
-    # Si hay resultados o no se requiere búsqueda dinámica, mostrar resultados
-    if results or not db.should_dynamic_search(query):
-        return render_template('results.html', query=query, results=results, stats=stats, background_tasks=background_tasks, safe_mode=safe_mode)
-    
-    # Registrar búsqueda dinámica e iniciar tarea
-    db.record_dynamic_search(query)
-    task_id = task_manager.create_task(query)
-    
-    threading.Thread(
-        target=dynamic_search_task, 
-        args=(query, task_id)
-    ).start()
-    
-    return redirect(f'/dynamic_search_progress?task_id={task_id}')
+    # Siempre mostrar resultados, filtrados o no
+    return render_template(
+        'results.html', 
+        query=query, 
+        results=results,  # Esta es la lista ya filtrada
+        stats=stats, 
+        background_tasks=background_tasks, 
+        safe_mode=safe_mode
+    )
 
 # la ruta /dynamic_search_progress muestra el progreso de una búsqueda dinámica.
 # Si la tarea no existe o ha expirado, muestra un mensaje de error.

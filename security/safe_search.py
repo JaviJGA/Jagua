@@ -90,7 +90,10 @@ class SafeSearch:
     def filter_results(self, results):
         safe_results = []
         for result in results:
-            url = result[0]
-            if not self.is_domain_blocked(url):
-                safe_results.append(result)
+            if len(result) >= 1:  # Asegurarse que el resultado tiene al menos la URL
+                url = result[0]
+                if not self.is_domain_blocked(url):
+                    safe_results.append(result)
+                else:
+                    print(f"Bloqueado: {url}")  # Depuración
         return safe_results
