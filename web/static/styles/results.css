@@ -201,3 +201,24 @@
         font-size: 14px;
         color: #5f6368;
     }
+    .theme-btn {
+  background-color: transparent;
+  color: #3498db; /* Color del texto azul */
+  border: 2px solid #3498db; /* Borde azul */
+  border-radius: 25px; /* Bordes curvados - ajusta este valor para cambiar el grado de curvatura */
+  padding: 10px 20px; /* Espaciado interno */
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease; /* Transición suave para efectos hover */
+  outline: none; /* Quita el contorno al hacer focus */
+}
+
+.theme-btn:hover {
+  background-color: #3498db; /* Fondo azul al pasar el mouse */
+  color: white; /* Texto blanco al pasar el mouse */
+}
+
+.theme-btn:active {
+  transform: scale(0.98); /* Efecto de "presionado" */
+}

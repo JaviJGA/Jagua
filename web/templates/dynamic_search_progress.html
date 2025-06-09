@@ -4,7 +4,14 @@
 <head>
     <title>Indexando: {{ query }}</title>
     <link rel="stylesheet" href="{{ url_for('static',filename='styles/dsp.css') }}">
+    <link id="theme-style" rel="stylesheet" href="{{ url_for('static', filename='styles/dsp.css') }}" 
+    data-light-url="{{ url_for('static', filename='styles/dsp.css') }}" 
+    data-dark-url="{{ url_for('static', filename='styles/dsp-dark.css') }}" 
+    data-crazy-url="{{ url_for('static', filename='styles/dsp-crazy.css') }}">
+
     <script src="{{url_for('static', filename='js/dsp.js')}}"></script>
+    <script src="{{ url_for('static', filename='js/selectordetemas.js') }}"></script>
+
 </head>
 <body>
     <div class="container">

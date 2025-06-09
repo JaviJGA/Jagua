@@ -4,12 +4,17 @@
 <head>
     <title>Resultados para "{{ query }}"</title>
     <link rel="stylesheet" href="{{ url_for('static',filename='styles/results.css') }}">
+    <link id="theme-style" rel="stylesheet" href="{{ url_for('static', filename='styles/results.css') }}" 
+    data-light-url="{{ url_for('static', filename='styles/results.css') }}" 
+    data-dark-url="{{ url_for('static', filename='styles/results-dark.css') }}" 
+    data-crazy-url="{{ url_for('static', filename='styles/results-crazy.css') }}">
+    <script src="{{ url_for('static', filename='js/selectordetemas.js') }}"></script>
 </head>
 <body>
     <div class="container">
         <header>
             <div class="logo">🔍</div>
-
+            
             <form action="/search" method="get" class="search-box">
                 <input type="text" name="q" value="{{ query }}" required>
                 
@@ -60,6 +65,9 @@
         
         <!-- Botón para forzar búsqueda dinámica -->
         <div class="action-buttons">
+             <button class="theme-btn" data-theme="light">Light</button>
+            <button class="theme-btn" data-theme="dark">Dark</button>
+            <button class="theme-btn" data-theme="crazy">crazy</button> 
             <a href="/force_dynamic_search?q={{ query }}" class="back-btn">Buscar en la web</a>
             <a href="/" class="back-btn">Nueva búsqueda</a>
         </div>
