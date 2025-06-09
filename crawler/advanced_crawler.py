@@ -157,8 +157,37 @@ def run_crawler(db):
         'History': 'Historia',
         'Art': 'Arte',
         'Mathematics': 'Matemáticas',
-        'Geography': 'Geografía'
+        'Geography': 'Geografía',
+        'Philosophy': 'Filosofía',
+        'Politics': 'Política',
+        'Economics': 'Economía',
+        'Literature': 'Literatura',
+        'Music': 'Música',
+        'Architecture': 'Arquitectura',
+        'Biology': 'Biología',
+        'Chemistry': 'Química',
+        'Physics': 'Física',
+        'Astronomy': 'Astronomía',
+        'Medicine': 'Medicina',
+        'Education': 'Educación',
+        'Engineering': 'Ingeniería',
+        'Religion': 'Religión',
+        'Linguistics': 'Lingüística',
+        'Psychology': 'Psicología',
+        'Sociology': 'Sociología',
+        'Anthropology': 'Antropología',
+        'Law': 'Derecho',
+        'Cinema': 'Cine',
+        'Theatre': 'Teatro',
+        'Sports': 'Deportes',
+        'Cuisine': 'Gastronomía',
+        'Transportation': 'Transporte',
+        'Environment': 'Medio ambiente',
+        'Military': 'Militar',
+        'Computing': 'Informática',
+        'Mythology': 'Mitología'
     }
+
 
     start_urls = [
         "https://www.nytimes.com", "https://www.bbc.com", "https://www.theguardian.com",
