@@ -55,12 +55,12 @@ function checkStatus() {
         });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    if (!taskId) {
-        const statusMessage = document.getElementById('status-message');
-        if (statusMessage) statusMessage.textContent = 'Error: ID de tarea no especificado';
-        return;
-    }
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!taskId) {
+                const statusMessage = document.getElementById('status-message');
+            if (statusMessage) statusMessage.textContent = 'Error: ID de tarea no especificado';
+            return;
+        }
 
-    checkStatus();
+            checkStatus();
 });
