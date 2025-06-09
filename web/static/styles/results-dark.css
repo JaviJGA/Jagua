@@ -55,9 +55,7 @@ input[type="text"]::placeholder {
 }
 
 .logo { 
-    font-size: 1.8rem;
-    margin-right: 15px;
-    color: var(--primary);
+    width: 10%;
 }
 
 .stats { 

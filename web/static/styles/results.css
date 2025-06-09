@@ -46,9 +46,8 @@
         }
 
         .logo { 
-            font-size: 1.8rem;
-            margin-right: 15px;
-        }
+    width: 10%;
+}
 
         .stats { 
             background: white;
