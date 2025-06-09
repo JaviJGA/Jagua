@@ -3,14 +3,17 @@
 <html>
 <head>
     <title>JAGUA</title>
-    <link rel="stylesheet" href="{{ url_for('static',filename='styles/search.css') }}" />
-    <script src="{{ url_for('static', filename='styles/search.js') }}"></script>
+    <link id="theme-style" rel="stylesheet" href="{{ url_for('static', filename='styles/search.css') }}" 
+    data-light-url="{{ url_for('static', filename='styles/search.css') }}" 
+    data-dark-url="{{ url_for('static', filename='styles/search-dark.css') }}" 
+    data-crazy-url="{{ url_for('static', filename='styles/search-crazy.css') }}">
 </head>
+<script src="{{ url_for('static', filename='styles/search.js') }}"></script>
 <body>
     
             <button class="theme-btn" data-theme="light">Light</button>
             <button class="theme-btn" data-theme="dark">Dark</button>
-            <button class="theme-btn" data-theme="blue">Blue</button>       
+            <button class="theme-btn" data-theme="crazy">crazy</button>       
         
     <div class="container">
         <header>
